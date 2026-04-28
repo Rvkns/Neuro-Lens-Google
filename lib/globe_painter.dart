@@ -17,7 +17,7 @@ class GlobePainter extends CustomPainter {
 
   GlobePainter({
     required this.particles,
-    this.connectionDistance = 55.0,
+    this.connectionDistance = 180.0,
     this.isActive = false,
   }) : sortedParticles = List<Particle>.from(particles)
           ..sort((a, b) => a.z3d.compareTo(b.z3d)); // z piccolo = dietro = prima
