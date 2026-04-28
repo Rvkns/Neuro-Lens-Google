@@ -30,6 +30,7 @@ class Particle {
   // ── Sistema di Attenzione ──
   double activation = 0.0;      // Eccitazione immediata (decade veloce)
   double attentionWeight = 0.0;  // Peso accumulato (decade lento — Heatmap)
+  double ripplePhase = 0.0;      // Fase dell'onda d'urto (1.0 -> 0.0)
   String? currentConcept;        // Etichetta semantica assegnata temporaneamente
   TextPainter? labelPainter;     // OTTIMIZZAZIONE 2: Painter pre-compilato
 
@@ -54,18 +55,29 @@ class Particle {
   void excite(double amount, {String? concept}) {
     activation = min(1.0, activation + amount);
     attentionWeight = min(1.0, attentionWeight + amount * 0.4);
+    
+    // Innesca l'onda d'urto se l'eccitazione è forte
+    if (amount > 0.4) {
+      ripplePhase = 1.0;
+    }
+
     if (concept != null && concept != currentConcept) {
       currentConcept = concept;
-      // OTTIMIZZAZIONE 2: Pre-calcoliamo il testo una volta sola,
-      // anziché ricalcolarlo 60 volte al secondo nel Paint.
+      // OTTIMIZZAZIONE 2: Pre-calcoliamo il testo una volta sola
       labelPainter = TextPainter(
         text: TextSpan(
-          text: '[$concept]',
+          text: concept, // Rimosse le parentesi quadre per un look più pulito
           style: const TextStyle(
-            color: Colors.cyanAccent,
-            fontSize: 16.0, // Font aumentato dell'80% per massima visibilità
+            color: Colors.white, 
+            fontSize: 18.0, 
             fontFamily: 'monospace',
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+            shadows: [
+              Shadow(color: Colors.cyanAccent, blurRadius: 6.0),
+              Shadow(color: Color(0xFFFF00FF), blurRadius: 12.0),
+              Shadow(color: Color(0xFFFF00FF), blurRadius: 24.0),
+            ],
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -109,6 +121,8 @@ class Particle {
     activation = max(0.0, activation - 0.018);
     // L'attention weight decade molto più lentamente (memoria storica)
     attentionWeight = max(0.0, attentionWeight - 0.003);
+    // Decadimento veloce dell'onda d'urto
+    ripplePhase = max(0.0, ripplePhase - 0.04);
 
     // Se l'attivazione scende sotto una soglia, dimentica il concetto
     if (activation < 0.05) {
@@ -157,10 +171,10 @@ class Particle {
 
   /// Calcola il colore finale basandosi su attivazione immediata e peso attention.
   Color get currentColor {
-    // Base blu scuro → ciano (attivazione) → arancio/rosso (attention cumulativa)
+    // Base blu scuro → ciano (attivazione) → rosa neon/magenta (attention cumulativa)
     Color base = const Color(0xFF0D2B6B);
     Color activated = Colors.cyanAccent;
-    Color hotspot = const Color(0xFFFF6B35); // Arancio "caldo"
+    Color hotspot = const Color(0xFFFF00FF); // Magenta Neon!
 
     // Prima miscela attivazione immediata
     Color mid = Color.lerp(base, activated, activation) ?? base;

@@ -73,7 +73,22 @@ class GlobePainter extends CustomPainter {
         synapsePaint.color = synapseColor;
         synapsePaint.strokeWidth = (0.4 + combinedActivation * 1.8) * depthAlpha;
 
-        canvas.drawLine(p1.screenPos, p2.screenPos, synapsePaint);
+        // Disegno la sinapsi come curva organica spinta verso il centro
+        final Path path = Path();
+        path.moveTo(p1.screenPos.dx, p1.screenPos.dy);
+        
+        final Offset midPoint = Offset(
+          (p1.screenPos.dx + p2.screenPos.dx) / 2,
+          (p1.screenPos.dy + p2.screenPos.dy) / 2,
+        );
+        // Spingiamo il punto di controllo del 20% verso l'origine (0,0)
+        final Offset controlPoint = Offset(
+          midPoint.dx * 0.8,
+          midPoint.dy * 0.8,
+        );
+        
+        path.quadraticBezierTo(controlPoint.dx, controlPoint.dy, p2.screenPos.dx, p2.screenPos.dy);
+        canvas.drawPath(path, synapsePaint);
       }
     }
 
@@ -111,31 +126,36 @@ class GlobePainter extends CustomPainter {
         );
       }
 
-      // ── ETICHETTA SEMANTICA FLUTTUANTE ──
+      // ── ONDA D'URTO DINAMICA (RIPPLE EFFECT) ──
+      if (p.ripplePhase > 0.01) {
+        final double rippleRadius = pSize * 2.0 + (1.0 - p.ripplePhase) * pSize * 10.0;
+        final double rippleOpacity = (p.ripplePhase * depth * 0.8).clamp(0.0, 1.0);
+        final Paint ripplePaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = (1.5 + p.ripplePhase * 2.0) * depth
+          ..color = const Color(0xFFFF00FF).withOpacity(rippleOpacity); // Magenta neon
+        canvas.drawCircle(p.screenPos, rippleRadius, ripplePaint);
+      }
+
+      // ── ETICHETTA SEMANTICA OLOGRAFICA FLUTTUANTE ──
       if (p.labelPainter != null && p.activation > 0.05) {
         // Opacità basata su attivazione e profondità
-        double labelAlpha = (p.activation * 2.0).clamp(0.0, 1.0) * depth;
+        double labelAlpha = (p.activation * 2.5).clamp(0.0, 1.0) * depth;
         if (depth < 0.6) labelAlpha *= 0.3;
 
         if (labelAlpha > 0.05) {
           canvas.save();
-          // Posizioniamo e scaliamo l'intero canvas per l'etichetta
-          canvas.translate(p.screenPos.dx + pSize + 4.0, p.screenPos.dy - (p.labelPainter!.height * depth) / 2);
-          canvas.scale(depth);
+          // Posizioniamo, scaliamo e facciamo "fluttuare" leggermente il testo col ripple
+          double floatY = -p.ripplePhase * 5.0;
+          canvas.translate(p.screenPos.dx + pSize + 8.0, p.screenPos.dy - (p.labelPainter!.height * depth) / 2 + floatY);
+          canvas.scale(depth * (1.0 + p.ripplePhase * 0.15)); // Piccolo bump di scala iniziale
           
-          // OTTIMIZZAZIONE 2: Invece di ricreare il testo per cambiare opacità,
-          // disegniamo il TextPainter pre-compilato con un layer di trasparenza.
           canvas.saveLayer(
-            Rect.fromLTWH(0, 0, p.labelPainter!.width, p.labelPainter!.height),
+            Rect.fromLTWH(-30, -30, p.labelPainter!.width + 60, p.labelPainter!.height + 60),
             Paint()..color = Colors.white.withOpacity(labelAlpha),
           );
           
-          // Ombra fissa pre-calcolata disegnata sotto (leggera sfocatura hardware)
-          final Paint shadowPaint = Paint()
-            ..color = Colors.cyanAccent.withOpacity(0.5)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
-          canvas.drawRect(Rect.fromLTWH(0, 0, p.labelPainter!.width, p.labelPainter!.height), shadowPaint);
-
+          // L'ombra al neon intensa è già definita nel TextStyle in ParticleEngine!
           p.labelPainter!.paint(canvas, Offset.zero);
           
           canvas.restore(); // Chiude il saveLayer
