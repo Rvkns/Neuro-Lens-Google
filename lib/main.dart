@@ -309,57 +309,63 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
     return Scaffold(
       body: LayoutBuilder(builder: (ctx, constraints) {
         bool wide = constraints.maxWidth > 900;
-        final panels = [_buildGlobePanel(wide), _divider(wide), _buildAnalysisPanel()];
-        return wide ? Row(children: panels) : Column(children: panels);
+        final panels = [_buildGlobePanel(wide), _divider(wide), _buildAnalysisPanel(wide)];
+        return wide 
+            ? Row(children: panels) 
+            : SingleChildScrollView(child: Column(children: panels));
       }),
     );
   }
 
   // ─────────────── PANNELLO SINISTRO ───────────────
   Widget _buildGlobePanel(bool wide) {
-    return Expanded(
-      flex: wide ? 1 : 0,
-      child: MouseRegion(
-        onHover: (e) {
-          final box = context.findRenderObject() as RenderBox?;
-          if (box == null) return;
-          final size = box.size;
-          setState(() {
-            _mouseOffset = Offset(
-              e.localPosition.dx - (wide ? size.width / 4 : size.width / 2),
-              e.localPosition.dy - (wide ? size.height / 2 : 200),
-            );
-          });
-        },
-        onExit: (_) => setState(() => _mouseOffset = Offset.zero),
-        child: Container(
-          height: wide ? double.infinity : 400,
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              colors: _isReceiving
-                  ? [const Color(0xFF0D1A2E), const Color(0xFF060610)]
-                  : [const Color(0xFF101018), const Color(0xFF060610)],
-              radius: 1.2,
-            ),
+    Widget globe = MouseRegion(
+      onHover: (e) {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null) return;
+        final size = box.size;
+        setState(() {
+          _mouseOffset = Offset(
+            e.localPosition.dx - (wide ? size.width / 4 : size.width / 2),
+            e.localPosition.dy - (wide ? size.height / 2 : 200),
+          );
+        });
+      },
+      onExit: (_) => setState(() => _mouseOffset = Offset.zero),
+      child: Container(
+        height: wide ? double.infinity : 380,
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            colors: _isReceiving
+                ? [const Color(0xFF0D1A2E), const Color(0xFF060610)]
+                : [const Color(0xFF101018), const Color(0xFF060610)],
+            radius: 1.2,
           ),
-          child: Stack(children: [
-            // OTTIMIZZAZIONE 1: AnimatedBuilder ascolta il controller e 
-            // ricostruisce SOLO il grafico del globo, salvando un'enormità di CPU.
-            AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return CustomPaint(
-                  size: Size.infinite,
-                  painter: GlobePainter(particles: _particles, isActive: _isReceiving),
-                );
-              },
-            ),
-            Positioned(top: 14, left: 14, child: _buildLegendHUD()),
-            Positioned(bottom: 14, left: 0, right: 0, child: Center(child: _buildNetworkStatus())),
-          ]),
         ),
+        child: Stack(children: [
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return CustomPaint(
+                size: Size.infinite,
+                painter: GlobePainter(particles: _particles, isActive: _isReceiving),
+              );
+            },
+          ),
+          Positioned(
+            top: 14, 
+            left: 14, 
+            child: Transform.scale(
+              scale: wide ? 1.0 : 0.8, 
+              alignment: Alignment.topLeft, 
+              child: _buildLegendHUD()
+            )
+          ),
+          Positioned(bottom: 14, left: 0, right: 0, child: Center(child: _buildNetworkStatus())),
+        ]),
       ),
     );
+    return wide ? Expanded(flex: 1, child: globe) : globe;
   }
 
   Widget _divider(bool wide) => Container(
@@ -369,57 +375,67 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   );
 
   // ─────────────── PANNELLO DESTRO ───────────────
-  Widget _buildAnalysisPanel() {
-    return Expanded(
-      flex: 1,
-      child: Container(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Text('NEURAL LENS v3.0',
-              style: GoogleFonts.spaceMono(
-                fontSize: 22, fontWeight: FontWeight.bold, color: Colors.cyanAccent,
-                letterSpacing: 2.0,
-                shadows: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 10)],
-              )),
-          const SizedBox(height: 3),
-          Text('Simulatore Didattico LLM // Gemini 2.5 Flash',
-              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
-          const SizedBox(height: 14),
+  Widget _buildAnalysisPanel(bool wide) {
+    Widget matrixCompass = wide
+        ? Row(children: [
+            Expanded(flex: 3, child: _buildProbabilityMatrix()),
+            const SizedBox(width: 10),
+            Expanded(flex: 2, child: SemanticCompass(
+              currentToken: _currentSemanticToken,
+              neighbors: _semanticNeighbors,
+              isActive: _isReceiving,
+            )),
+          ])
+        : Column(children: [
+            SizedBox(height: 220, child: _buildProbabilityMatrix()),
+            const SizedBox(height: 10),
+            SizedBox(height: 220, child: SemanticCompass(
+              currentToken: _currentSemanticToken,
+              neighbors: _semanticNeighbors,
+              isActive: _isReceiving,
+            )),
+          ]);
 
-          // Metriche live
-          _buildMetricsBar(),
-          const SizedBox(height: 14),
+    Widget content = Container(
+      padding: EdgeInsets.all(wide ? 24.0 : 16.0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Header
+        Text('NEURAL LENS v3.0',
+            style: GoogleFonts.spaceMono(
+              fontSize: 22, fontWeight: FontWeight.bold, color: Colors.cyanAccent,
+              letterSpacing: 2.0,
+              shadows: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 10)],
+            )),
+        const SizedBox(height: 3),
+        Text('Simulatore Didattico LLM // Gemini 2.5 Flash',
+            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
+        const SizedBox(height: 14),
 
-          // Token stream
-          Expanded(flex: 4, child: _buildTokenStream()),
-          const SizedBox(height: 12),
+        // Metriche live
+        _buildMetricsBar(wide),
+        const SizedBox(height: 14),
 
-          // Probability Matrix + Semantic Compass side by side
-          // OTTIMIZZAZIONE LAYOUT: Usare Expanded invece di un'altezza fissa previene
-          // l'overflow invisibile che copriva la barra di testo sottostante!
-          Expanded(
-            flex: 3,
-            child: Row(children: [
-              Expanded(flex: 3, child: _buildProbabilityMatrix()),
-              const SizedBox(width: 10),
-              Expanded(flex: 2, child: SemanticCompass(
-                currentToken: _currentSemanticToken,
-                neighbors: _semanticNeighbors,
-                isActive: _isReceiving,
-              )),
-            ]),
-          ),
-          const SizedBox(height: 14),
+        // Token stream
+        if (wide) Expanded(flex: 4, child: _buildTokenStream())
+        else SizedBox(height: 280, child: _buildTokenStream()),
+        
+        const SizedBox(height: 12),
 
-          // Input
-          _buildInput(),
-        ]),
-      ),
+        // Probability Matrix + Semantic Compass
+        if (wide) Expanded(flex: 3, child: matrixCompass)
+        else matrixCompass,
+        
+        const SizedBox(height: 14),
+
+        // Input
+        _buildInput(),
+      ]),
     );
+
+    return wide ? Expanded(flex: 1, child: content) : content;
   }
 
-  Widget _buildMetricsBar() {
+  Widget _buildMetricsBar(bool wide) {
     String latency = _metrics.firstTokenMs != null ? '${_metrics.firstTokenMs}ms' : '—';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -428,12 +444,22 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white.withOpacity(0.07)),
       ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        _metricCell('TOKEN/s', _metrics.tokensPerSecond.toStringAsFixed(1), Colors.cyanAccent),
-        _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white70),
-        _metricCell('ENTROPIA', _metrics.entropy.toStringAsFixed(2), Colors.purpleAccent),
-        _metricCell('LATENZA', latency, const Color(0xFFFF6B35)),
-      ]),
+      child: wide
+          ? Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              _metricCell('TOKEN/s', _metrics.tokensPerSecond.toStringAsFixed(1), Colors.cyanAccent),
+              _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white70),
+              _metricCell('ENTROPIA', _metrics.entropy.toStringAsFixed(2), Colors.purpleAccent),
+              _metricCell('LATENZA', latency, const Color(0xFFFF6B35)),
+            ])
+          : Wrap(
+              spacing: 16, runSpacing: 10, alignment: WrapAlignment.spaceBetween,
+              children: [
+                _metricCell('TOKEN/s', _metrics.tokensPerSecond.toStringAsFixed(1), Colors.cyanAccent),
+                _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white70),
+                _metricCell('ENTROPIA', _metrics.entropy.toStringAsFixed(2), Colors.purpleAccent),
+                _metricCell('LATENZA', latency, const Color(0xFFFF6B35)),
+              ],
+            ),
     );
   }
 
