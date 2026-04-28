@@ -1,0 +1,14 @@
+# Environments
+.env
+
+# Flutter/Dart/Pub
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDEs
+.idea/
+.vscode/
+*.iml

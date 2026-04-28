@@ -1,0 +1,166 @@
+import 'dart:math';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'particle_engine.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GLOBE PAINTER v3.0 — Rendering 3D con z-sort, sinapsi e Attention Heatmap
+// ─────────────────────────────────────────────────────────────────────────────
+
+class GlobePainter extends CustomPainter {
+  final List<Particle> particles;
+  final double connectionDistance;
+  final bool isActive;
+
+  // Lista di particelle già ordinata per profondità (z-sort) — calcolata fuori dal paint
+  final List<Particle> sortedParticles;
+
+  GlobePainter({
+    required this.particles,
+    this.connectionDistance = 55.0,
+    this.isActive = false,
+  }) : sortedParticles = List<Particle>.from(particles)
+          ..sort((a, b) => a.z3d.compareTo(b.z3d)); // z piccolo = dietro = prima
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.translate(size.width / 2, size.height / 2);
+
+    // ── Paint per le sinapsi ──
+    final Paint synapsePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // ── Paint per il bagliore (blurred glow) ──
+    final Paint glowPaint = Paint()
+      ..style = PaintingStyle.fill;
+
+    // ── Paint per il nucleo solido ──
+    final Paint corePaint = Paint()..style = PaintingStyle.fill;
+
+    // 1. ── DISEGNO SINAPSI (iterazione N^2 su 150 nodi = 11.250 coppie, veloce) ──
+    for (int i = 0; i < sortedParticles.length; i++) {
+      final p1 = sortedParticles[i];
+      for (int j = i + 1; j < sortedParticles.length; j++) {
+        final p2 = sortedParticles[j];
+
+        // Distanza 2D proiettata sullo schermo
+        final double dist = (p1.screenPos - p2.screenPos).distance;
+        if (dist > connectionDistance) continue;
+
+        // Opacità dipende da distanza e profondità media (z lontano = più trasparente)
+        double distAlpha = 1.0 - (dist / connectionDistance);
+        double depthAlpha = ((p1.perspectiveScale + p2.perspectiveScale) / 2).clamp(0.3, 1.0);
+        double combinedActivation = (p1.activation + p2.activation) / 2.0;
+        double combinedAttention = (p1.attentionWeight + p2.attentionWeight) / 2.0;
+
+        // Colore sinapsi: blu strutturale → ciano (attivazione) → arancio (attention)
+        Color synapseColor;
+        if (combinedAttention > 0.2) {
+          synapseColor = Color.lerp(
+            const Color(0xFF1565C0).withOpacity(0.12 * distAlpha * depthAlpha),
+            const Color(0xFFFF6B35).withOpacity(0.85 * distAlpha * depthAlpha),
+            combinedAttention,
+          )!;
+        } else {
+          synapseColor = Color.lerp(
+            const Color(0xFF0D47A1).withOpacity(0.10 * distAlpha * depthAlpha),
+            Colors.cyanAccent.withOpacity(0.9 * distAlpha * depthAlpha),
+            combinedActivation,
+          )!;
+        }
+
+        synapsePaint.color = synapseColor;
+        synapsePaint.strokeWidth = (0.4 + combinedActivation * 1.8) * depthAlpha;
+
+        canvas.drawLine(p1.screenPos, p2.screenPos, synapsePaint);
+      }
+    }
+
+    // 2. ── DISEGNO NODI (dal più lontano al più vicino — z-sort garantisce l'ordine) ──
+    for (final p in sortedParticles) {
+      final double depth = p.perspectiveScale;
+      final Color pColor = p.currentColor;
+      final double pSize = p.size * depth * (1.0 + p.activation * 0.5);
+
+      // Bagliore esterno sfocato (più intenso con l'attivazione)
+      if (p.activation > 0.05 || p.attentionWeight > 0.05) {
+        double glowRadius = pSize * (3.5 + p.activation * 3.0 + p.attentionWeight * 2.0);
+        glowPaint.color = pColor.withOpacity((0.15 + p.activation * 0.4) * depth);
+        glowPaint.maskFilter = MaskFilter.blur(
+          BlurStyle.normal,
+          (4.0 + p.activation * 4.0) * depth,
+        );
+        canvas.drawCircle(p.screenPos, glowRadius, glowPaint);
+        glowPaint.maskFilter = null;
+      }
+
+      // Nucleo solido con opacità modulata dalla profondità
+      corePaint.color = pColor.withOpacity((0.6 + depth * 0.4).clamp(0.0, 1.0));
+      canvas.drawCircle(p.screenPos, pSize, corePaint);
+
+      // Riflesso speculare (piccolo punto bianco in alto a sinistra — effetto 3D)
+      if (depth > 0.7 && pSize > 1.5) {
+        final Paint specularPaint = Paint()
+          ..style = PaintingStyle.fill
+          ..color = Colors.white.withOpacity(0.35 * depth);
+        canvas.drawCircle(
+          p.screenPos + Offset(-pSize * 0.25, -pSize * 0.25),
+          pSize * 0.28,
+          specularPaint,
+        );
+      }
+
+      // ── ETICHETTA SEMANTICA FLUTTUANTE ──
+      if (p.labelPainter != null && p.activation > 0.05) {
+        // Opacità basata su attivazione e profondità
+        double labelAlpha = (p.activation * 2.0).clamp(0.0, 1.0) * depth;
+        if (depth < 0.6) labelAlpha *= 0.3;
+
+        if (labelAlpha > 0.05) {
+          canvas.save();
+          // Posizioniamo e scaliamo l'intero canvas per l'etichetta
+          canvas.translate(p.screenPos.dx + pSize + 4.0, p.screenPos.dy - (p.labelPainter!.height * depth) / 2);
+          canvas.scale(depth);
+          
+          // OTTIMIZZAZIONE 2: Invece di ricreare il testo per cambiare opacità,
+          // disegniamo il TextPainter pre-compilato con un layer di trasparenza.
+          canvas.saveLayer(
+            Rect.fromLTWH(0, 0, p.labelPainter!.width, p.labelPainter!.height),
+            Paint()..color = Colors.white.withOpacity(labelAlpha),
+          );
+          
+          // Ombra fissa pre-calcolata disegnata sotto (leggera sfocatura hardware)
+          final Paint shadowPaint = Paint()
+            ..color = Colors.cyanAccent.withOpacity(0.5)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
+          canvas.drawRect(Rect.fromLTWH(0, 0, p.labelPainter!.width, p.labelPainter!.height), shadowPaint);
+
+          p.labelPainter!.paint(canvas, Offset.zero);
+          
+          canvas.restore(); // Chiude il saveLayer
+          canvas.restore(); // Chiude il translate/scale
+        }
+      }
+    }
+
+    // 3. ── ALONE NEBULARE DEL GLOBO (fondo) ──
+    if (isActive) {
+      final Rect rect = Rect.fromCircle(center: Offset.zero, radius: 500); // Aumentato da 220 a 500
+      final Paint nebulaPaint = Paint()
+        ..shader = ui.Gradient.radial(
+          Offset.zero,
+          500, // Aumentato a 500
+          [
+            Colors.cyanAccent.withOpacity(0.04),
+            Colors.transparent,
+          ],
+          [0.3, 1.0],
+        );
+      canvas.drawRect(rect, nebulaPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant GlobePainter oldDelegate) => true;
+}
