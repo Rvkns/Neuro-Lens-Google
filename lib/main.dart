@@ -12,7 +12,9 @@ import 'semantic_compass.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (_) {}
   runApp(const NeuralLensApp());
 }
 
@@ -139,7 +141,10 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   }
 
   void _initGemini() {
-    final key = dotenv.env['GEMINI_API_KEY'] ?? '';
+    String key = const String.fromEnvironment('GEMINI_API_KEY');
+    if (key.isEmpty) {
+      key = dotenv.env['GEMINI_API_KEY'] ?? '';
+    }
     _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: key);
   }
 
