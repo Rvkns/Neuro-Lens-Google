@@ -557,15 +557,17 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
 
   Widget _buildLegendHUD() {
     return Container(
-      padding: const EdgeInsets.all(10),
+      width: 250,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.cyan.withOpacity(0.15)),
+        color: Colors.black.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.cyan.withOpacity(0.2)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10)],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('LEGENDA RETE', style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 8, letterSpacing: 1.2)),
-        const SizedBox(height: 6),
+        Text('LEGENDA RETE', style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+        const SizedBox(height: 10),
         _legendRow(Colors.cyanAccent, 'circle', 'NODO ATTIVO', 'Spazio Latente in elaborazione'),
         _legendRow(Colors.blue.withOpacity(0.6), 'circle', 'NODO INATTIVO', 'Embedding a riposo'),
         _legendRow(const Color(0xFFFF6B35), 'circle', 'NODO HOT', 'Alta attenzione storica (heatmap)'),
@@ -577,19 +579,20 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
 
   Widget _legendRow(Color color, String shape, String label, String desc) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 16, height: 16, child: Center(
+        SizedBox(width: 18, height: 18, child: Center(
           child: shape == 'circle'
-              ? Container(width: 7, height: 7, decoration: BoxDecoration(
+              ? Container(width: 8, height: 8, decoration: BoxDecoration(
                   color: color, shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 3)]))
-              : Container(width: 14, height: 1.5, color: color),
+                  boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 4)]))
+              : Container(width: 16, height: 2, color: color),
         )),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: TextStyle(color: color, fontSize: 7, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 7)),
+          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 2),
+          Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 9)),
         ])),
       ]),
     );
