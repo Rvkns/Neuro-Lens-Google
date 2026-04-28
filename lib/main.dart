@@ -637,6 +637,7 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
           onSubmitted: (_) => _sendPrompt(),
         ),
       ),
+      ),
       const SizedBox(width: 10),
       InkWell(
         onTap: _isReceiving ? null : _sendPrompt,
