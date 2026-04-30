@@ -44,6 +44,12 @@ class GlobePainter extends CustomPainter {
       for (int j = i + 1; j < sortedParticles.length; j++) {
         final p2 = sortedParticles[j];
 
+        // OTTIMIZZAZIONE BROWSER: disegna linee solo tra nodi in cui almeno uno è attivato
+        if (p1.activation < 0.02 && p1.attentionWeight < 0.02 &&
+            p2.activation < 0.02 && p2.attentionWeight < 0.02) {
+          continue;
+        }
+
         // Distanza 2D proiettata sullo schermo
         final double dist = (p1.screenPos - p2.screenPos).distance;
         if (dist > connectionDistance) continue;
@@ -126,16 +132,6 @@ class GlobePainter extends CustomPainter {
         );
       }
 
-      // ── ONDA D'URTO DINAMICA (RIPPLE EFFECT) ──
-      if (p.ripplePhase > 0.01) {
-        final double rippleRadius = pSize * 2.0 + (1.0 - p.ripplePhase) * pSize * 10.0;
-        final double rippleOpacity = (p.ripplePhase * depth * 0.8).clamp(0.0, 1.0);
-        final Paint ripplePaint = Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = (1.5 + p.ripplePhase * 2.0) * depth
-          ..color = const Color(0xFFFF00FF).withOpacity(rippleOpacity); // Magenta neon
-        canvas.drawCircle(p.screenPos, rippleRadius, ripplePaint);
-      }
 
       // ── ETICHETTA SEMANTICA OLOGRAFICA FLUTTUANTE ──
       if (p.labelPainter != null && p.activation > 0.05) {
