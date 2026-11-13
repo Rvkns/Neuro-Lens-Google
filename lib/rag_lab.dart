@@ -25,8 +25,8 @@ class RagChunk {
   final int id;
   final String title;
   final String content;
-  final List<double> vectorPreview; // 4 dimensioni dimostrative
-  final Offset spacePos;            // Posizione normalizzata (-1..1) nel Vector Space 2D
+  final List<double> vectorPreview;
+  final Offset spacePos;
   final List<String> keywords;
   double similarityScore;
   bool isSelectedTopK;
@@ -175,7 +175,6 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
         .where((w) => w.length > 2)
         .toSet();
 
-    // Determina il baricentro vettoriale della query in base alle parole chiave
     double qx = 0.05;
     double qy = -0.05;
     for (final c in _chunks) {
@@ -193,7 +192,6 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
       0.24,
     ];
 
-    // Calcola Cosine Similarity simulata + lessematica per ogni Chunk
     for (final c in _chunks) {
       int hits = c.keywords.where((k) => qLower.contains(k) || qWords.contains(k)).length;
       double dist = (c.spacePos - _queryVectorPos).distance;
@@ -203,7 +201,6 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
       c.isSelectedTopK = false;
     }
 
-    // Ordina una copia per determinare i Top-K sopra soglia
     final sorted = List<RagChunk>.from(_chunks)
       ..sort((a, b) => b.similarityScore.compareTo(a.similarityScore));
 
@@ -288,7 +285,7 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(flex: 11, child: _buildLeftVectorSpacePanel(true)),
-            Container(width: 1, color: Colors.purpleAccent.withOpacity(0.18)),
+            Container(width: 1, color: Colors.purpleAccent.withOpacity(0.22)),
             Expanded(flex: 10, child: _buildRightRagInspectorPanel(true)),
           ],
         );
@@ -297,7 +294,7 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
           child: Column(
             children: [
               _buildLeftVectorSpacePanel(false),
-              Container(height: 1, color: Colors.purpleAccent.withOpacity(0.18)),
+              Container(height: 1, color: Colors.purpleAccent.withOpacity(0.22)),
               _buildRightRagInspectorPanel(false),
             ],
           ),
@@ -311,7 +308,7 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildLeftVectorSpacePanel(bool wide) {
     return Container(
-      padding: EdgeInsets.all(wide ? 22 : 14),
+      padding: EdgeInsets.all(wide ? 22 : 16),
       decoration: const BoxDecoration(
         gradient: RadialGradient(
           colors: [Color(0xFF170E2C), Color(0xFF06060F)],
@@ -321,30 +318,29 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFB388FF).withOpacity(0.15),
+                  color: const Color(0xFFB388FF).withOpacity(0.18),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFB388FF).withOpacity(0.45)),
+                  border: Border.all(color: const Color(0xFFB388FF).withOpacity(0.55)),
                 ),
                 child: Text(
                   'LAB 03 // PIPELINE RAG & VECTOR DB',
                   style: GoogleFonts.spaceMono(
                     color: const Color(0xFFB388FF),
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Come collegare documenti privati a un LLM eliminando le allucinazioni',
-                  style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 11),
+                  style: TextStyle(color: Colors.white.withOpacity(0.82), fontSize: 13),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -352,19 +348,16 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
           ),
           const SizedBox(height: 12),
 
-          // Barra delle 5 fasi RAG cliccabili
           _buildRagStageBar(),
           const SizedBox(height: 12),
 
-          // Canvas interattivo: Spazio Vettoriale 2D + Ricerca Cosine Similarity
           if (wide)
             Expanded(child: _buildVectorSpaceCanvas())
           else
-            SizedBox(height: 300, child: _buildVectorSpaceCanvas()),
+            SizedBox(height: 320, child: _buildVectorSpaceCanvas()),
 
           const SizedBox(height: 12),
 
-          // Box didattico che spiega la fase selezionata della pipeline RAG
           _buildStageExplanationBox(),
         ],
       ),
@@ -381,15 +374,15 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
+        color: Colors.black.withOpacity(0.55),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
+        spacing: 8,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         alignment: WrapAlignment.spaceBetween,
         children: [
@@ -403,17 +396,17 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                   onTap: () => setState(() => _currentStage = st.$1),
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: active ? st.$3.withOpacity(0.22) : Colors.white.withOpacity(0.04),
+                      color: active ? st.$3.withOpacity(0.25) : Colors.white.withOpacity(0.06),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: active ? st.$3 : Colors.white12),
+                      border: Border.all(color: active ? st.$3 : Colors.white24),
                     ),
                     child: Text(
                       st.$2,
                       style: GoogleFonts.spaceMono(
-                        color: active ? st.$3 : Colors.white54,
-                        fontSize: 8.5,
+                        color: active ? st.$3 : Colors.white70,
+                        fontSize: 10.5,
                         fontWeight: active ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
@@ -426,15 +419,19 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
             onTap: _nextStage,
             borderRadius: BorderRadius.circular(6),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.cyanAccent.withOpacity(0.14),
+                color: Colors.cyanAccent.withOpacity(0.16),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.cyanAccent.withOpacity(0.4)),
+                border: Border.all(color: Colors.cyanAccent.withOpacity(0.5)),
               ),
               child: Text(
                 'Passo Successivo ▶',
-                style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 8.5),
+                style: GoogleFonts.spaceMono(
+                  color: Colors.cyanAccent,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -449,7 +446,7 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
       decoration: BoxDecoration(
         color: const Color(0xFF060510),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFB388FF).withOpacity(0.25)),
+        border: Border.all(color: const Color(0xFFB388FF).withOpacity(0.3)),
       ),
       child: Stack(
         children: [
@@ -472,15 +469,19 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
             top: 10,
             left: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.75),
+                color: Colors.black.withOpacity(0.82),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: Colors.white24),
               ),
               child: Text(
                 'VECTOR DATABASE // SPAZIO EMBEDDING MULTIDIMENSIONALE (Cosine Similarity)',
-                style: GoogleFonts.spaceMono(color: const Color(0xFFB388FF), fontSize: 8.5),
+                style: GoogleFonts.spaceMono(
+                  color: const Color(0xFFB388FF),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -488,20 +489,18 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
             bottom: 10,
             left: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.75),
+                color: Colors.black.withOpacity(0.82),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: Colors.white24),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Wrap(
+                spacing: 14,
                 children: [
                   _legendDot(Colors.amberAccent, 'Query Utente (Vettore Domanda)'),
-                  const SizedBox(width: 12),
                   _legendDot(const Color(0xFF69F0AE), 'Chunk Recuperato (Top-K Match)'),
-                  const SizedBox(width: 12),
-                  _legendDot(Colors.blueGrey, 'Chunk Scartato (Bassa Affinità)'),
+                  _legendDot(Colors.blueGrey.shade200, 'Chunk Scartato (Bassa Affinità)'),
                 ],
               ),
             ),
@@ -516,12 +515,12 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 8,
-          height: 8,
+          width: 9,
+          height: 9,
           decoration: BoxDecoration(color: col, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 5),
-        Text(text, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 9)),
+        const SizedBox(width: 6),
+        Text(text, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
       ],
     );
   }
@@ -578,36 +577,36 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withOpacity(0.65),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: col.withOpacity(0.35)),
+        border: Border.all(color: col.withOpacity(0.45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: GoogleFonts.spaceMono(color: col, fontSize: 11, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            body,
-            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11.5, height: 1.45),
+            style: GoogleFonts.spaceMono(color: col, fontSize: 13.5, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
+          Text(
+            body,
+            style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 13.5, height: 1.5),
+          ),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: col.withOpacity(0.08),
+              color: col.withOpacity(0.10),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: col.withOpacity(0.25)),
+              border: Border.all(color: col.withOpacity(0.35)),
             ),
             child: Text(
               formula,
-              style: GoogleFonts.spaceMono(color: col, fontSize: 9.5, fontWeight: FontWeight.bold),
+              style: GoogleFonts.spaceMono(color: col, fontSize: 11.5, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -620,7 +619,7 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildRightRagInspectorPanel(bool wide) {
     return Container(
-      padding: EdgeInsets.all(wide ? 22 : 14),
+      padding: EdgeInsets.all(wide ? 22 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -631,7 +630,7 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
           if (wide)
             Expanded(child: _buildRightTabBody())
           else
-            SizedBox(height: 450, child: _buildRightTabBody()),
+            SizedBox(height: 500, child: _buildRightTabBody()),
         ],
       ),
     );
@@ -639,32 +638,35 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
 
   Widget _buildQueryControllerCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
+        color: Colors.black.withOpacity(0.55),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFB388FF).withOpacity(0.25)),
+        border: Border.all(color: const Color(0xFFB388FF).withOpacity(0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Domande di esempio rapide
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'DOMANDA UTENTE (QUERY DI RICERCA):',
                 style: GoogleFonts.spaceMono(
                   color: const Color(0xFFB388FF),
-                  fontSize: 9.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Spacer(),
-              ...List.generate(_presetQuestions.length, (i) {
-                final bool sel = _selectedPresetQuestion == i;
-                return Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: InkWell(
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: List.generate(_presetQuestions.length, (i) {
+                  final bool sel = _selectedPresetQuestion == i;
+                  return InkWell(
                     onTap: () {
                       setState(() {
                         _selectedPresetQuestion = i;
@@ -672,32 +674,33 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                         _recomputeSimilarities(_queryCtrl.text);
                       });
                     },
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(6),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(
                         color: sel
-                            ? const Color(0xFFB388FF).withOpacity(0.22)
-                            : Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(5),
+                            ? const Color(0xFFB388FF).withOpacity(0.25)
+                            : Colors.white.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: sel ? const Color(0xFFB388FF) : Colors.white12,
+                          color: sel ? const Color(0xFFB388FF) : Colors.white24,
                         ),
                       ),
                       child: Text(
                         _presetQuestions[i].$1,
                         style: GoogleFonts.spaceMono(
-                          color: sel ? const Color(0xFFB388FF) : Colors.white60,
-                          fontSize: 8.5,
+                          color: sel ? const Color(0xFFB388FF) : Colors.white,
+                          fontSize: 10.5,
+                          fontWeight: sel ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           Row(
             children: [
@@ -705,16 +708,16 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                 child: TextField(
                   controller: _queryCtrl,
                   onChanged: (v) => setState(() => _recomputeSimilarities(v)),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Fai una domanda sui documenti nel Vector Database...',
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.45)),
                     filled: true,
-                    fillColor: Colors.black.withOpacity(0.5),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    fillColor: Colors.black.withOpacity(0.6),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
                     ),
                   ),
                 ),
@@ -723,25 +726,24 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
               ElevatedButton.icon(
                 onPressed: _isRunning ? null : _runFullRagPipeline,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB388FF).withOpacity(0.2),
+                  backgroundColor: const Color(0xFFB388FF).withOpacity(0.22),
                   foregroundColor: const Color(0xFFB388FF),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  side: const BorderSide(color: Color(0xFFB388FF)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  side: const BorderSide(color: Color(0xFFB388FF), width: 1.3),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                icon: const Icon(Icons.bolt, size: 16),
+                icon: const Icon(Icons.bolt, size: 18),
                 label: Text(
                   'ESEGUI RAG',
-                  style: GoogleFonts.spaceMono(fontSize: 10, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.spaceMono(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Controlli Top-K e Soglia Similarità
           Wrap(
-            spacing: 16,
+            spacing: 18,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
@@ -750,11 +752,15 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                 children: [
                   Text(
                     'Top-K Chunks da estrarre: $_topK',
-                    style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 9.5),
+                    style: GoogleFonts.spaceMono(
+                      color: Colors.cyanAccent,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   SizedBox(
-                    width: 100,
-                    height: 24,
+                    width: 105,
+                    height: 26,
                     child: Slider(
                       value: _topK.toDouble(),
                       min: 1,
@@ -776,11 +782,15 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                 children: [
                   Text(
                     'Soglia Minima: ${(_similarityThreshold * 100).toInt()}%',
-                    style: GoogleFonts.spaceMono(color: Colors.amberAccent, fontSize: 9.5),
+                    style: GoogleFonts.spaceMono(
+                      color: Colors.amberAccent,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   SizedBox(
-                    width: 100,
-                    height: 24,
+                    width: 105,
+                    height: 26,
                     child: Slider(
                       value: _similarityThreshold,
                       min: 0.20,
@@ -820,22 +830,22 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
               onTap: () => setState(() => _rightTabIndex = i),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
                 decoration: BoxDecoration(
                   color: active
-                      ? const Color(0xFFB388FF).withOpacity(0.18)
-                      : Colors.black.withOpacity(0.4),
+                      ? const Color(0xFFB388FF).withOpacity(0.22)
+                      : Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: active ? const Color(0xFFB388FF) : Colors.white12,
+                    color: active ? const Color(0xFFB388FF) : Colors.white24,
                   ),
                 ),
                 child: Center(
                   child: Text(
                     tabs[i].$2,
                     style: GoogleFonts.spaceMono(
-                      color: active ? const Color(0xFFB388FF) : Colors.white60,
-                      fontSize: 9,
+                      color: active ? const Color(0xFFB388FF) : Colors.white,
+                      fontSize: 11,
                       fontWeight: active ? FontWeight.bold : FontWeight.normal,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -867,19 +877,19 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
 
     return ListView.separated(
       itemCount: sorted.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final c = sorted[i];
-        final Color col = c.isSelectedTopK ? const Color(0xFF69F0AE) : Colors.white38;
+        final Color col = c.isSelectedTopK ? const Color(0xFF69F0AE) : Colors.white60;
         return Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: c.isSelectedTopK
-                ? const Color(0xFF69F0AE).withOpacity(0.06)
-                : Colors.black.withOpacity(0.45),
+                ? const Color(0xFF69F0AE).withOpacity(0.08)
+                : Colors.black.withOpacity(0.55),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: c.isSelectedTopK ? const Color(0xFF69F0AE).withOpacity(0.5) : Colors.white10,
+              color: c.isSelectedTopK ? const Color(0xFF69F0AE).withOpacity(0.6) : Colors.white12,
             ),
           ),
           child: Column(
@@ -888,27 +898,27 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: col.withOpacity(0.18),
+                      color: col.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       c.isSelectedTopK ? '✓ RECUPERATO (TOP-K)' : 'SCARTATO',
                       style: GoogleFonts.spaceMono(
                         color: col,
-                        fontSize: 8,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       c.title,
                       style: GoogleFonts.spaceMono(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -917,32 +927,34 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                     'cos(θ) = ${(c.similarityScore * 100).toStringAsFixed(1)}%',
                     style: GoogleFonts.spaceMono(
                       color: col,
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              // Barra grafica di similarità coseno
+              const SizedBox(height: 8),
               ClipRRect(
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: c.similarityScore,
-                  minHeight: 5,
-                  backgroundColor: Colors.white10,
+                  minHeight: 7,
+                  backgroundColor: Colors.white12,
                   valueColor: AlwaysStoppedAnimation<Color>(col),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 c.content,
-                style: TextStyle(color: Colors.white.withOpacity(0.78), fontSize: 11, height: 1.35),
+                style: TextStyle(color: Colors.white.withOpacity(0.92), fontSize: 13, height: 1.4),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 'Embedding Vector: ${c.vectorPreview} ... (768 dim)',
-                style: GoogleFonts.spaceMono(color: Colors.purpleAccent.withOpacity(0.65), fontSize: 8.5),
+                style: GoogleFonts.spaceMono(
+                  color: const Color(0xFFB388FF).withOpacity(0.9),
+                  fontSize: 10.5,
+                ),
               ),
             ],
           ),
@@ -959,11 +971,11 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
         : selected.map((c) => '--- [${c.title}] ---\n${c.content}').join('\n\n');
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withOpacity(0.6),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFFF6B35).withOpacity(0.35)),
+        border: Border.all(color: const Color(0xFFFF6B35).withOpacity(0.45)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -973,16 +985,16 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
               'ANATOMIA DEL PROMPT AUMENTATO INVIATO ALL\'LLM:',
               style: GoogleFonts.spaceMono(
                 color: const Color(0xFFFF6B35),
-                fontSize: 10,
+                fontSize: 12.5,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               'Il segreto della RAG è che l\'LLM riceve un unico grande testo composto da 3 blocchi distinti assemblati dal tuo codice prima della chiamata API:',
-              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
+              style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13, height: 1.4),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
             _promptSectionCard(
               label: 'BLOCCO 1 // SYSTEM INSTRUCTION (Regole di Grounding)',
@@ -990,14 +1002,14 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
               text:
                   'Sei un assistente accademico rigoroso. Rispondi alla domanda dell\'utente basandoti ESCLUSIVAMENTE sui frammenti di contesto forniti qui sotto. Cita sempre il numero del Chunk usato. Se la risposta non è nel contesto, dichiara che non disponi dei dati.',
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
             _promptSectionCard(
               label: 'BLOCCO 2 // CONTESTO INIETTATO DAL VECTOR DB (Top-${selected.length} Chunks)',
               color: const Color(0xFF69F0AE),
               text: contextBlocks,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
             _promptSectionCard(
               label: 'BLOCCO 3 // DOMANDA ORIGINALE DELL\'UTENTE',
@@ -1017,23 +1029,23 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
+        color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withOpacity(0.45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: GoogleFonts.spaceMono(color: color, fontSize: 9, fontWeight: FontWeight.bold),
+            style: GoogleFonts.spaceMono(color: color, fontSize: 11.5, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           SelectableText(
             text,
-            style: GoogleFonts.spaceMono(color: Colors.white.withOpacity(0.9), fontSize: 10.5, height: 1.4),
+            style: GoogleFonts.spaceMono(color: Colors.white.withOpacity(0.95), fontSize: 12.5, height: 1.45),
           ),
         ],
       ),
@@ -1047,11 +1059,11 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF5252).withOpacity(0.06),
+              color: const Color(0xFFFF5252).withOpacity(0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFF5252).withOpacity(0.4)),
+              border: Border.all(color: const Color(0xFFFF5252).withOpacity(0.5)),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -1061,28 +1073,28 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                     '❌ LLM TRADIZIONALE (SENZA RAG)',
                     style: GoogleFonts.spaceMono(
                       color: const Color(0xFFFF5252),
-                      fontSize: 10.5,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     _noRagResponse,
-                    style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11.5, height: 1.45),
+                    style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 13.5, height: 1.5),
                   ),
                 ],
               ),
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF69F0AE).withOpacity(0.06),
+              color: const Color(0xFF69F0AE).withOpacity(0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.45)),
+              border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.55)),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -1092,14 +1104,14 @@ class _RagLabWorkspaceState extends State<RagLabWorkspace>
                     '✅ LLM CON PIPELINE RAG ATTIVA (GROUNDED GENERATION)',
                     style: GoogleFonts.spaceMono(
                       color: const Color(0xFF69F0AE),
-                      fontSize: 10.5,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     _ragResponse,
-                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11.5, height: 1.45),
+                    style: TextStyle(color: Colors.white.withOpacity(0.96), fontSize: 13.5, height: 1.5),
                   ),
                 ],
               ),
@@ -1134,9 +1146,8 @@ class _RagVectorSpacePainter extends CustomPainter {
     final Offset center = Offset(size.width / 2, size.height / 2);
     final double radius = min(size.width, size.height) * 0.40;
 
-    // Cerchi radar ed assi dello spazio di Embedding
     final Paint gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.06)
+      ..color = Colors.white.withOpacity(0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -1151,17 +1162,15 @@ class _RagVectorSpacePainter extends CustomPainter {
       center.dy + queryPos.dy * radius,
     );
 
-    // Onda radar di scansione durante Vector Search
     if (stage == RagStage.vectorSearch || stage == RagStage.promptAugment || stage == RagStage.llmGeneration) {
       final double waveRadius = (animPhase * radius * 1.3);
       final Paint radarPaint = Paint()
-        ..color = Colors.amberAccent.withOpacity((1.0 - animPhase) * 0.25)
+        ..color = Colors.amberAccent.withOpacity((1.0 - animPhase) * 0.3)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
+        ..strokeWidth = 2.2;
       canvas.drawCircle(qScreen, waveRadius, radarPaint);
     }
 
-    // Disegna le linee di distanza / Cosine Similarity tra Query e Chunks
     for (final c in chunks) {
       final Offset cScreen = Offset(
         center.dx + c.spacePos.dx * radius,
@@ -1170,72 +1179,69 @@ class _RagVectorSpacePainter extends CustomPainter {
 
       final bool highlight = c.isSelectedTopK;
       final Color lineCol = highlight
-          ? const Color(0xFF69F0AE).withOpacity(0.75)
-          : Colors.white.withOpacity(0.12);
+          ? const Color(0xFF69F0AE).withOpacity(0.85)
+          : Colors.white.withOpacity(0.18);
 
       final Paint linePaint = Paint()
         ..color = lineCol
-        ..strokeWidth = highlight ? 2.0 : 0.8;
+        ..strokeWidth = highlight ? 2.4 : 1.0;
       canvas.drawLine(qScreen, cScreen, linePaint);
 
-      // Etichetta percentuale di similarità a metà della linea per i Top-K
       if (highlight) {
         final Offset mid = Offset.lerp(qScreen, cScreen, 0.5)!;
         _drawLabel(
           canvas,
           'cos=${(c.similarityScore * 100).toInt()}%',
-          mid.translate(0, -8),
+          mid.translate(0, -10),
           const Color(0xFF69F0AE),
-          9,
+          11,
           bold: true,
         );
       }
 
-      // Nodo del Chunk
-      final Color nodeCol = highlight ? const Color(0xFF69F0AE) : Colors.blueGrey.shade300;
+      final Color nodeCol = highlight ? const Color(0xFF69F0AE) : Colors.blueGrey.shade200;
       if (highlight) {
         canvas.drawCircle(
           cScreen,
-          16,
+          18,
           Paint()
-            ..color = nodeCol.withOpacity(0.25)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+            ..color = nodeCol.withOpacity(0.3)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
         );
       }
-      canvas.drawCircle(cScreen, highlight ? 7 : 5, Paint()..color = nodeCol);
+      canvas.drawCircle(cScreen, highlight ? 8.5 : 6.5, Paint()..color = nodeCol);
 
       _drawLabel(
         canvas,
         'Chunk #0${c.id}',
-        cScreen.translate(0, -15),
+        cScreen.translate(0, -18),
         nodeCol,
-        9.5,
+        11.5,
         bold: highlight,
       );
       _drawLabel(
         canvas,
         '${c.vectorPreview.take(2).toList()}',
-        cScreen.translate(0, 14),
-        Colors.white54,
-        8,
+        cScreen.translate(0, 17),
+        Colors.white70,
+        10,
       );
     }
 
-    // Disegna il nodo della Query Utente (Stella Ambra)
     canvas.drawCircle(
       qScreen,
-      20,
+      22,
       Paint()
-        ..color = Colors.amberAccent.withOpacity(0.25)
+        ..color = Colors.amberAccent.withOpacity(0.3)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
     );
-    canvas.drawCircle(qScreen, 7.5, Paint()..color = Colors.amberAccent);
+    canvas.drawCircle(qScreen, 9, Paint()..color = Colors.amberAccent);
     _drawLabel(
       canvas,
       'QUERY VECTOR',
-      qScreen.translate(0, -16),
+      qScreen.translate(0, -19),
       Colors.amberAccent,
-      9.5,
+      11.5,
       bold: true,
     );
   }

@@ -52,7 +52,7 @@ const Map<ApiStep, ApiStepInfo> kApiStepDetails = {
   ApiStep.idle: ApiStepInfo(
     number: 0,
     title: 'SISTEMA PRONTO // IN ATTESA DI CHIAMATA',
-    subtitle: 'Configura i parametri o premi "Invia Chiamata API" o "Avanza Step"',
+    subtitle: 'Configura i parametri o premi "INVIA API" / "Avanza Step"',
     academicExplanation:
         'Un\'API (Application Programming Interface) è un contratto di comunicazione tra due software. '
         'Permette alla tua applicazione (Client) di chiedere un servizio o un calcolo a un sistema remoto (Server) '
@@ -107,7 +107,7 @@ const Map<ApiStep, ApiStepInfo> kApiStepDetails = {
         'Il server estrae il campo "contents", tokenizza il testo, lo processa sulla rete neurale con i parametri "generationConfig" '
         '(es. temperature) e calcola i token di risposta e le statistiche di consumo ("usageMetadata").',
     analogy:
-        'Lo chef in cucina: legge la comanda approvata, prepara il piatto seguendo le tue preferenze di cottura (Temperature) e lo impiattata.',
+        'Lo chef in cucina: legge la comanda approvata, prepara il piatto seguendo le tue preferenze di cottura (Temperature) e lo impiatta.',
     color: Color(0xFFE040FB),
   ),
   ApiStep.responseTransit: ApiStepInfo(
@@ -167,7 +167,7 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
   // Controllo flusso didattico
   ApiStep _currentStep = ApiStep.idle;
   bool _isRunning = false;
-  double _speedMultiplier = 1.0; // 0.5x = slow-mo didattico, 1.0x = normale
+  double _speedMultiplier = 1.0;
 
   // Telemetria chiamata
   int _statusCode = 200;
@@ -198,7 +198,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     super.dispose();
   }
 
-  // Avvia la simulazione automatica (o chiamata reale) attraversando tutti gli step
   Future<void> _executeApiCall() async {
     if (_isRunning) return;
     final sw = Stopwatch()..start();
@@ -221,7 +220,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     await Future.delayed(stepDelay);
     if (!mounted) return;
 
-    // Se lo scenario simula un errore sul Gateway (400, 401, 429), il flusso rimbalza qui!
     if (_scenario != ApiScenario.success200) {
       _applyScenarioOutcome(sw.elapsedMilliseconds);
       setState(() => _currentStep = ApiStep.responseTransit);
@@ -234,7 +232,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
       return;
     }
 
-    // Fase 4: Inferenza sul server
     setState(() => _currentStep = ApiStep.serverInference);
 
     if (_useLiveGemini && widget.geminiModel != null && widget.hasValidKey) {
@@ -338,7 +335,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     int idx = order.indexOf(_currentStep);
     if (idx < order.length - 1) {
       int nextIdx = idx + 1;
-      // Se c'è un errore 4xx, dal Gateway (step 3) si salta direttamente alla Response d'errore (step 5)
       if (_currentStep == ApiStep.gatewayAuth && _scenario != ApiScenario.success200) {
         _applyScenarioOutcome(48);
         nextIdx = order.indexOf(ApiStep.responseTransit);
@@ -368,7 +364,7 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(flex: 11, child: _buildLeftVisualPanel(true)),
-            Container(width: 1, color: Colors.cyan.withOpacity(0.15)),
+            Container(width: 1, color: Colors.cyan.withOpacity(0.2)),
             Expanded(flex: 10, child: _buildRightInspectorPanel(true)),
           ],
         );
@@ -377,7 +373,7 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           child: Column(
             children: [
               _buildLeftVisualPanel(false),
-              Container(height: 1, color: Colors.cyan.withOpacity(0.15)),
+              Container(height: 1, color: Colors.cyan.withOpacity(0.2)),
               _buildRightInspectorPanel(false),
             ],
           ),
@@ -392,7 +388,7 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
   Widget _buildLeftVisualPanel(bool wide) {
     final stepInfo = kApiStepDetails[_currentStep]!;
     return Container(
-      padding: EdgeInsets.all(wide ? 22 : 14),
+      padding: EdgeInsets.all(wide ? 22 : 16),
       decoration: const BoxDecoration(
         gradient: RadialGradient(
           colors: [Color(0xFF0E192D), Color(0xFF06060F)],
@@ -406,26 +402,26 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.cyanAccent.withOpacity(0.12),
+                  color: Colors.cyanAccent.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.cyanAccent.withOpacity(0.4)),
+                  border: Border.all(color: Colors.cyanAccent.withOpacity(0.5)),
                 ),
                 child: Text(
                   'LAB 02 // ARCHITETTURA API',
                   style: GoogleFonts.spaceMono(
                     color: Colors.cyanAccent,
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Cosa sono, come viaggiano i pacchetti HTTP/JSON e come si integrano',
-                  style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 11),
+                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -441,7 +437,7 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           if (wide)
             Expanded(child: _buildAnimatedFlowCanvas())
           else
-            SizedBox(height: 290, child: _buildAnimatedFlowCanvas()),
+            SizedBox(height: 310, child: _buildAnimatedFlowCanvas()),
 
           const SizedBox(height: 12),
 
@@ -496,16 +492,16 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.45),
+            color: Colors.black.withOpacity(0.55),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.25)),
+            border: Border.all(color: color.withOpacity(0.35)),
           ),
           child: Row(
             children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 8),
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,13 +510,14 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                       title,
                       style: GoogleFonts.spaceMono(
                         color: color,
-                        fontSize: 9,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       desc,
-                      style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 9),
+                      style: TextStyle(color: Colors.white.withOpacity(0.82), fontSize: 11.5),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -540,9 +537,9 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
       decoration: BoxDecoration(
         color: const Color(0xFF050711),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.cyanAccent.withOpacity(0.2)),
+        border: Border.all(color: Colors.cyanAccent.withOpacity(0.25)),
         boxShadow: [
-          BoxShadow(color: Colors.cyanAccent.withOpacity(0.05), blurRadius: 18),
+          BoxShadow(color: Colors.cyanAccent.withOpacity(0.06), blurRadius: 18),
         ],
       ),
       child: Stack(
@@ -566,36 +563,36 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
             top: 10,
             left: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.75),
+                color: Colors.black.withOpacity(0.82),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00E5FF).withOpacity(0.2),
+                      color: const Color(0xFF00E5FF).withOpacity(0.25),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       'POST',
                       style: GoogleFonts.spaceMono(
                         color: const Color(0xFF00E5FF),
-                        fontSize: 9,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:${_useStreaming ? "streamGenerateContent" : "generateContent"}',
+                    'generativelanguage.googleapis.com/v1beta/...:${_useStreaming ? "streamGenerateContent" : "generateContent"}',
                     style: GoogleFonts.spaceMono(
-                      color: Colors.white.withOpacity(0.75),
-                      fontSize: 9,
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -618,26 +615,26 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
         ? const Color(0xFF69F0AE)
         : (_statusCode >= 400 ? const Color(0xFFFF5252) : Colors.amberAccent);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.75),
+        color: Colors.black.withOpacity(0.82),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: col.withOpacity(0.5)),
+        border: Border.all(color: col.withOpacity(0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 7,
-            height: 7,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(color: col, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 7),
           Text(
             'HTTP $_statusText',
             style: GoogleFonts.spaceMono(
               color: col,
-              fontSize: 9,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -646,8 +643,8 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
             Text(
               '${_latencyMs}ms',
               style: GoogleFonts.spaceMono(
-                color: Colors.white54,
-                fontSize: 9,
+                color: Colors.white70,
+                fontSize: 11,
               ),
             ),
           ],
@@ -667,11 +664,11 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
+        color: Colors.black.withOpacity(0.55),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: Wrap(
         spacing: 8,
@@ -679,7 +676,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
         crossAxisAlignment: WrapCrossAlignment.center,
         alignment: WrapAlignment.spaceBetween,
         children: [
-          // Indicatori numerati cliccabili delle 6 fasi
           Row(
             mainAxisSize: MainAxisSize.min,
             children: steps.map((s) {
@@ -693,18 +689,18 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                   borderRadius: BorderRadius.circular(6),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: isCurrent
-                          ? info.color.withOpacity(0.22)
+                          ? info.color.withOpacity(0.25)
                           : (isPassed
-                              ? info.color.withOpacity(0.08)
-                              : Colors.white.withOpacity(0.04)),
+                              ? info.color.withOpacity(0.10)
+                              : Colors.white.withOpacity(0.06)),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
                         color: isCurrent
                             ? info.color
-                            : (isPassed ? info.color.withOpacity(0.35) : Colors.white12),
+                            : (isPassed ? info.color.withOpacity(0.45) : Colors.white24),
                       ),
                     ),
                     child: Text(
@@ -712,8 +708,8 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                       style: GoogleFonts.spaceMono(
                         color: isCurrent
                             ? info.color
-                            : (isPassed ? Colors.white70 : Colors.white38),
-                        fontSize: 9,
+                            : (isPassed ? Colors.white : Colors.white60),
+                        fontSize: 11,
                         fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
@@ -723,7 +719,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
             }).toList(),
           ),
 
-          // Pulsanti Step-by-Step + Slow Motion
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -748,21 +743,21 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                 },
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: _speedMultiplier < 1.0
-                        ? Colors.amber.withOpacity(0.2)
-                        : Colors.white.withOpacity(0.05),
+                        ? Colors.amber.withOpacity(0.22)
+                        : Colors.white.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: _speedMultiplier < 1.0 ? Colors.amberAccent : Colors.white12,
+                      color: _speedMultiplier < 1.0 ? Colors.amberAccent : Colors.white24,
                     ),
                   ),
                   child: Text(
                     _speedMultiplier < 1.0 ? '🐢 SLOW-MO (0.4x)' : '⚡ VELOCITÀ 1x',
                     style: GoogleFonts.spaceMono(
-                      color: _speedMultiplier < 1.0 ? Colors.amberAccent : Colors.white60,
-                      fontSize: 9,
+                      color: _speedMultiplier < 1.0 ? Colors.amberAccent : Colors.white,
+                      fontSize: 11,
                     ),
                   ),
                 ),
@@ -780,23 +775,23 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     required VoidCallback? onTap,
     bool highlight = false,
   }) {
-    final Color col = highlight ? Colors.cyanAccent : Colors.white70;
+    final Color col = highlight ? Colors.cyanAccent : Colors.white;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: highlight ? Colors.cyanAccent.withOpacity(0.12) : Colors.white.withOpacity(0.05),
+          color: highlight ? Colors.cyanAccent.withOpacity(0.15) : Colors.white.withOpacity(0.07),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: col.withOpacity(0.35)),
+          border: Border.all(color: col.withOpacity(0.45)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: col),
-            const SizedBox(width: 4),
-            Text(label, style: GoogleFonts.spaceMono(color: col, fontSize: 9)),
+            Icon(icon, size: 15, color: col),
+            const SizedBox(width: 5),
+            Text(label, style: GoogleFonts.spaceMono(color: col, fontSize: 11)),
           ],
         ),
       ),
@@ -806,11 +801,11 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
   Widget _buildStepExplanationCard(ApiStepInfo info) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withOpacity(0.65),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: info.color.withOpacity(0.35)),
+        border: Border.all(color: info.color.withOpacity(0.45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -818,8 +813,8 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           Row(
             children: [
               Container(
-                width: 8,
-                height: 8,
+                width: 10,
+                height: 10,
                 decoration: BoxDecoration(color: info.color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
@@ -828,42 +823,43 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                   info.title,
                   style: GoogleFonts.spaceMono(
                     color: info.color,
-                    fontSize: 11,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               Text(
                 info.subtitle,
-                style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 10),
+                style: TextStyle(color: Colors.white.withOpacity(0.72), fontSize: 11.5),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             info.academicExplanation,
-            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11.5, height: 1.45),
+            style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 13.5, height: 1.5),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: info.color.withOpacity(0.07),
+              color: info.color.withOpacity(0.10),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: info.color.withOpacity(0.2)),
+              border: Border.all(color: info.color.withOpacity(0.3)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.lightbulb_outline, color: info.color, size: 14),
+                Icon(Icons.lightbulb_outline, color: info.color, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     info.analogy,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.75),
-                      fontSize: 10.5,
+                      color: Colors.white.withOpacity(0.92),
+                      fontSize: 12.5,
                       fontStyle: FontStyle.italic,
+                      height: 1.4,
                     ),
                   ),
                 ),
@@ -880,23 +876,18 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildRightInspectorPanel(bool wide) {
     return Container(
-      padding: EdgeInsets.all(wide ? 22 : 14),
+      padding: EdgeInsets.all(wide ? 22 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Configuratore interattivo della Request
           _buildRequestBuilderCard(),
           const SizedBox(height: 12),
-
-          // Selettore Tab: 1) Ispettore HTTP/JSON  2) Come si integra (Codice)  3) Glossario API
           _buildRightTabBar(),
           const SizedBox(height: 12),
-
-          // Contenuto Tab
           if (wide)
             Expanded(child: _buildSelectedTabContent())
           else
-            SizedBox(height: 460, child: _buildSelectedTabContent()),
+            SizedBox(height: 500, child: _buildSelectedTabContent()),
         ],
       ),
     );
@@ -904,11 +895,11 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
 
   Widget _buildRequestBuilderCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
+        color: Colors.black.withOpacity(0.55),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.cyan.withOpacity(0.2)),
+        border: Border.all(color: Colors.cyan.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -919,61 +910,60 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                 'COSTRUTTORE CHIAMATA API (REQUEST BUILDER)',
                 style: GoogleFonts.spaceMono(
                   color: Colors.cyanAccent,
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.1,
                 ),
               ),
               const Spacer(),
-              // Toggle Live Gemini vs Sandbox Didattica
               InkWell(
                 onTap: () => setState(() => _useLiveGemini = !_useLiveGemini),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: _useLiveGemini
-                        ? const Color(0xFF69F0AE).withOpacity(0.15)
-                        : Colors.white.withOpacity(0.06),
+                        ? const Color(0xFF69F0AE).withOpacity(0.18)
+                        : Colors.white.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _useLiveGemini ? const Color(0xFF69F0AE) : Colors.white24,
+                      color: _useLiveGemini ? const Color(0xFF69F0AE) : Colors.white38,
                     ),
                   ),
                   child: Text(
                     _useLiveGemini ? '● LIVE GEMINI API' : '○ SANDBOX DIDATTICA',
                     style: GoogleFonts.spaceMono(
-                      color: _useLiveGemini ? const Color(0xFF69F0AE) : Colors.white70,
-                      fontSize: 8.5,
+                      color: _useLiveGemini ? const Color(0xFF69F0AE) : Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Campo Prompt + Pulsante Invia Chiamata API
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _promptCtrl,
                   onChanged: (_) => setState(() {}),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Payload JSON -> contents[0].parts[0].text',
-                    labelStyle: TextStyle(color: Colors.cyanAccent.withOpacity(0.7), fontSize: 10),
+                    labelStyle: TextStyle(color: Colors.cyanAccent.withOpacity(0.85), fontSize: 12),
                     filled: true,
-                    fillColor: Colors.black.withOpacity(0.5),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    fillColor: Colors.black.withOpacity(0.6),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -986,55 +976,52 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
               ElevatedButton.icon(
                 onPressed: _isRunning ? null : _executeApiCall,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.cyanAccent.withOpacity(0.18),
+                  backgroundColor: Colors.cyanAccent.withOpacity(0.2),
                   foregroundColor: Colors.cyanAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  side: const BorderSide(color: Colors.cyanAccent),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  side: const BorderSide(color: Colors.cyanAccent, width: 1.3),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                icon: Icon(_isRunning ? Icons.hourglass_top : Icons.play_arrow, size: 16),
+                icon: Icon(_isRunning ? Icons.hourglass_top : Icons.play_arrow, size: 18),
                 label: Text(
                   _isRunning ? 'IN CORSO...' : 'INVIA API',
-                  style: GoogleFonts.spaceMono(fontSize: 10, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.spaceMono(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Riga parametri: Scenario HTTP (200, 401, 429, 400), Temperature, Streaming
           Wrap(
             spacing: 12,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              // Selettore Scenario HTTP
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Simula Status:', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10)),
-                  const SizedBox(width: 6),
+                  Text('Simula Status:', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+                  const SizedBox(width: 8),
                   _scenarioChip(ApiScenario.success200, '200 OK', const Color(0xFF69F0AE)),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   _scenarioChip(ApiScenario.unauthorized401, '401 Auth', const Color(0xFFFF5252)),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   _scenarioChip(ApiScenario.rateLimit429, '429 Quota', Colors.amberAccent),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   _scenarioChip(ApiScenario.badRequest400, '400 JSON', Colors.orangeAccent),
                 ],
               ),
 
-              // Slider Temperature
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'Temp: ${_temperature.toStringAsFixed(1)}',
-                    style: GoogleFonts.spaceMono(color: Colors.purpleAccent, fontSize: 9.5),
+                    style: GoogleFonts.spaceMono(color: Colors.purpleAccent, fontSize: 11.5, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(
-                    width: 90,
-                    height: 24,
+                    width: 95,
+                    height: 26,
                     child: Slider(
                       value: _temperature,
                       min: 0.0,
@@ -1047,26 +1034,26 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                 ],
               ),
 
-              // Toggle REST vs SSE Stream
               InkWell(
                 onTap: () => setState(() => _useStreaming = !_useStreaming),
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: _useStreaming
-                        ? Colors.purpleAccent.withOpacity(0.18)
-                        : Colors.white.withOpacity(0.05),
+                        ? Colors.purpleAccent.withOpacity(0.22)
+                        : Colors.white.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: _useStreaming ? Colors.purpleAccent : Colors.white12,
+                      color: _useStreaming ? Colors.purpleAccent : Colors.white24,
                     ),
                   ),
                   child: Text(
                     _useStreaming ? 'MODALITÀ: SSE STREAM' : 'MODALITÀ: REST UNICO',
                     style: GoogleFonts.spaceMono(
-                      color: _useStreaming ? Colors.purpleAccent : Colors.white60,
-                      fontSize: 8.5,
+                      color: _useStreaming ? Colors.purpleAccent : Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -1087,19 +1074,19 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           _applyScenarioOutcome(_latencyMs > 0 ? _latencyMs : 120);
         });
       },
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? col.withOpacity(0.22) : Colors.white.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: selected ? col : Colors.white12),
+          color: selected ? col.withOpacity(0.25) : Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: selected ? col : Colors.white24),
         ),
         child: Text(
           label,
           style: GoogleFonts.spaceMono(
-            color: selected ? col : Colors.white54,
-            fontSize: 8.5,
+            color: selected ? col : Colors.white70,
+            fontSize: 10.5,
             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -1124,25 +1111,25 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
               borderRadius: BorderRadius.circular(8),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
                 decoration: BoxDecoration(
-                  color: active ? Colors.cyanAccent.withOpacity(0.16) : Colors.black.withOpacity(0.4),
+                  color: active ? Colors.cyanAccent.withOpacity(0.18) : Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: active ? Colors.cyanAccent : Colors.white.withOpacity(0.08),
+                    color: active ? Colors.cyanAccent : Colors.white.withOpacity(0.15),
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(tabs[i].$1, size: 14, color: active ? Colors.cyanAccent : Colors.white54),
+                    Icon(tabs[i].$1, size: 16, color: active ? Colors.cyanAccent : Colors.white70),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         tabs[i].$2,
                         style: GoogleFonts.spaceMono(
-                          color: active ? Colors.cyanAccent : Colors.white60,
-                          fontSize: 9,
+                          color: active ? Colors.cyanAccent : Colors.white,
+                          fontSize: 11,
                           fontWeight: active ? FontWeight.bold : FontWeight.normal,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -1235,7 +1222,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Colonna HTTP REQUEST
               Expanded(
                 child: _jsonPanel(
                   badge: 'OUTGOING // HTTP REQUEST',
@@ -1252,7 +1238,6 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                 ),
               ),
               const SizedBox(width: 10),
-              // Colonna HTTP RESPONSE
               Expanded(
                 child: _jsonPanel(
                   badge: 'INCOMING // HTTP RESPONSE ($_statusText)',
@@ -1284,11 +1269,11 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     required String footerNote,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withOpacity(0.6),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1297,35 +1282,34 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
             badge,
             style: GoogleFonts.spaceMono(
               color: color,
-              fontSize: 9.5,
+              fontSize: 11.5,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
-          // Sezione Headers
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withOpacity(0.04),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.white.withOpacity(0.07)),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'HTTP HEADERS (Metadati Busta)',
-                  style: GoogleFonts.spaceMono(color: Colors.white38, fontSize: 8),
+                  style: GoogleFonts.spaceMono(color: Colors.white70, fontSize: 10.5, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 ...headers.map((h) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
+                      padding: const EdgeInsets.only(bottom: 3),
                       child: Text(
                         h,
                         style: GoogleFonts.spaceMono(
-                          color: h.contains('x-goog-api-key') ? Colors.amberAccent : Colors.white70,
-                          fontSize: 9,
+                          color: h.contains('x-goog-api-key') ? Colors.amberAccent : Colors.white.withOpacity(0.9),
+                          fontSize: 11,
                         ),
                       ),
                     )),
@@ -1335,25 +1319,25 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           const SizedBox(height: 8),
           Text(
             'JSON PAYLOAD (Corpo Dati)',
-            style: GoogleFonts.spaceMono(color: Colors.white38, fontSize: 8),
+            style: GoogleFonts.spaceMono(color: Colors.white70, fontSize: 10.5, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Expanded(
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF05060C),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white.withOpacity(0.06)),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
               ),
               child: SingleChildScrollView(
                 child: SelectableText(
                   jsonBody,
                   style: GoogleFonts.spaceMono(
-                    color: color.withOpacity(0.9),
-                    fontSize: 10,
-                    height: 1.4,
+                    color: color.withOpacity(0.95),
+                    fontSize: 12.5,
+                    height: 1.45,
                   ),
                 ),
               ),
@@ -1362,7 +1346,7 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           const SizedBox(height: 8),
           Text(
             footerNote,
-            style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 9.5),
+            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11.5, height: 1.35),
           ),
         ],
       ),
@@ -1377,14 +1361,13 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withOpacity(0.6),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Selettore linguaggio + Pulsante Copia
           Row(
             children: [
               ...List.generate(languages.length, (i) {
@@ -1395,21 +1378,21 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                     onTap: () => setState(() => _codeLangIndex = i),
                     borderRadius: BorderRadius.circular(6),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: sel
-                            ? const Color(0xFF69F0AE).withOpacity(0.2)
-                            : Colors.white.withOpacity(0.05),
+                            ? const Color(0xFF69F0AE).withOpacity(0.22)
+                            : Colors.white.withOpacity(0.06),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: sel ? const Color(0xFF69F0AE) : Colors.white12,
+                          color: sel ? const Color(0xFF69F0AE) : Colors.white24,
                         ),
                       ),
                       child: Text(
                         languages[i],
                         style: GoogleFonts.spaceMono(
-                          color: sel ? const Color(0xFF69F0AE) : Colors.white60,
-                          fontSize: 9.5,
+                          color: sel ? const Color(0xFF69F0AE) : Colors.white,
+                          fontSize: 11.5,
                           fontWeight: sel ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
@@ -1430,19 +1413,23 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
                 },
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.cyanAccent.withOpacity(0.12),
+                    color: Colors.cyanAccent.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.4)),
+                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.5)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.copy, size: 12, color: Colors.cyanAccent),
-                      const SizedBox(width: 5),
+                      const Icon(Icons.copy, size: 14, color: Colors.cyanAccent),
+                      const SizedBox(width: 6),
                       Text(
                         'COPIA CODICE',
-                        style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 9),
+                        style: GoogleFonts.spaceMono(
+                          color: Colors.cyanAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -1452,13 +1439,12 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
           ),
           const SizedBox(height: 10),
 
-          // 4 Regole d'oro per integrare un'API
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
             ),
             child: Text(
               'COME SI INTEGRA IN 4 PASSI:  '
@@ -1466,28 +1452,27 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
               '② Prepara URL Endpoint + Headers   '
               '③ Invia il Body JSON con POST   '
               '④ Gestisci errori (try/catch) e leggi il JSON di risposta.',
-              style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 10),
+              style: TextStyle(color: Colors.white.withOpacity(0.92), fontSize: 12, height: 1.4),
             ),
           ),
           const SizedBox(height: 10),
 
-          // Editor codice generato dinamicamente
           Expanded(
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: const Color(0xFF05070E),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
               ),
               child: SingleChildScrollView(
                 child: SelectableText(
                   code,
                   style: GoogleFonts.spaceMono(
                     color: const Color(0xFF69F0AE),
-                    fontSize: 10.5,
-                    height: 1.45,
+                    fontSize: 12.5,
+                    height: 1.5,
                   ),
                 ),
               ),
@@ -1504,7 +1489,7 @@ class _ApiLabWorkspaceState extends State<ApiLabWorkspace>
     final action = _useStreaming ? 'streamGenerateContent' : 'generateContent';
 
     switch (langIndex) {
-      case 0: // Python
+      case 0:
         return '''# 1. Importa le librerie per leggere .env ed effettuare chiamate HTTP
 import os
 import requests
@@ -1535,7 +1520,7 @@ if response.status_code == 200:
 else:
     print(f"Errore API ({response.status_code}):", response.text)''';
 
-      case 1: // JavaScript (Fetch)
+      case 1:
         return '''// 1. Endpoint API e chiave caricata dalle variabili d'ambiente
 const API_KEY = process.env.GEMINI_API_KEY;
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:$action";
@@ -1571,7 +1556,7 @@ async function chiamaModelloAI() {
 
 chiamaModelloAI();''';
 
-      case 2: // Dart / Flutter (come in Neural Lens!)
+      case 2:
         return '''// Come è integrato in questo stesso progetto Flutter (Neural Lens)!
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -1602,7 +1587,7 @@ Future<void> inviaStimoloAllaRete() async {
   }
 }''';
 
-      default: // cURL
+      default:
         return '''# Test rapido da Terminale con cURL (senza scrivere codice!)
 curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:$action" \\
   -H "Content-Type: application/json" \\
@@ -1653,9 +1638,9 @@ curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withOpacity(0.6),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.purpleAccent.withOpacity(0.25)),
+        border: Border.all(color: Colors.purpleAccent.withOpacity(0.35)),
       ),
       child: ListView.separated(
         itemCount: concepts.length,
@@ -1663,11 +1648,11 @@ curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5
         itemBuilder: (context, i) {
           final c = concepts[i];
           return Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withOpacity(0.04),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: c.$3.withOpacity(0.25)),
+              border: Border.all(color: c.$3.withOpacity(0.35)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1676,14 +1661,14 @@ curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5
                   c.$1,
                   style: GoogleFonts.spaceMono(
                     color: c.$3,
-                    fontSize: 10.5,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   c.$2,
-                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11, height: 1.4),
+                  style: TextStyle(color: Colors.white.withOpacity(0.92), fontSize: 13, height: 1.45),
                 ),
               ],
             ),
@@ -1696,8 +1681,6 @@ curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOM PAINTER: VISUALIZZATORE ARCHITETTURALE DEL FLUSSO API
-// Disegna i 4 nodi (Client, Tunnel HTTPS, API Gateway, Server AI) e i pacchetti
-// dati JSON/HTTP in movimento in base allo step attivo.
 // ─────────────────────────────────────────────────────────────────────────────
 class _ApiFlowPainter extends CustomPainter {
   final ApiStep currentStep;
@@ -1714,9 +1697,8 @@ class _ApiFlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Griglia cyber-accademica di sfondo
     final Paint gridPaint = Paint()
-      ..color = Colors.cyanAccent.withOpacity(0.035)
+      ..color = Colors.cyanAccent.withOpacity(0.04)
       ..strokeWidth = 1;
     const double step = 32;
     for (double x = 0; x < size.width; x += step) {
@@ -1726,7 +1708,7 @@ class _ApiFlowPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    final double cy = size.height * 0.54;
+    final double cy = size.height * 0.55;
     final Offset clientPos = Offset(size.width * 0.14, cy);
     final Offset tlsPos = Offset(size.width * 0.38, cy);
     final Offset gatewayPos = Offset(size.width * 0.62, cy);
@@ -1735,13 +1717,9 @@ class _ApiFlowPainter extends CustomPainter {
     final bool isError = scenario != ApiScenario.success200;
     const Color errColor = Color(0xFFFF5252);
 
-    // 1. Disegna i canali di connessione (Andata in alto, Ritorno in basso)
     _drawConnectionTrack(canvas, clientPos, tlsPos, gatewayPos, serverPos, isError);
-
-    // 2. Disegna i pacchetti dati animati lungo il percorso in base a currentStep
     _drawActivePackets(canvas, clientPos, tlsPos, gatewayPos, serverPos, isError, errColor);
 
-    // 3. Disegna i 4 Nodi Architetturali
     _drawArchNode(
       canvas,
       pos: clientPos,
@@ -1807,35 +1785,33 @@ class _ApiFlowPainter extends CustomPainter {
     bool isError,
   ) {
     final Paint reqTrack = Paint()
-      ..color = Colors.cyanAccent.withOpacity(0.18)
-      ..strokeWidth = 2.0
+      ..color = Colors.cyanAccent.withOpacity(0.28)
+      ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
 
     final Paint resTrack = Paint()
-      ..color = (isError ? const Color(0xFFFF5252) : const Color(0xFF69F0AE)).withOpacity(0.18)
-      ..strokeWidth = 2.0
+      ..color = (isError ? const Color(0xFFFF5252) : const Color(0xFF69F0AE)).withOpacity(0.28)
+      ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
 
-    // Corsia Request (sopra: y - 18)
-    canvas.drawLine(p1.translate(0, -18), p3.translate(0, -18), reqTrack);
+    canvas.drawLine(p1.translate(0, -22), p3.translate(0, -22), reqTrack);
     if (!isError) {
-      canvas.drawLine(p3.translate(0, -18), p4.translate(0, -18), reqTrack);
+      canvas.drawLine(p3.translate(0, -22), p4.translate(0, -22), reqTrack);
     }
 
-    // Corsia Response (sotto: y + 18)
     canvas.drawLine(
-      (isError ? p3 : p4).translate(0, 18),
-      p1.translate(0, 18),
+      (isError ? p3 : p4).translate(0, 22),
+      p1.translate(0, 22),
       resTrack,
     );
 
-    // Etichette corsie
     _drawText(
       canvas,
       '───► HTTP REQUEST (Headers + Body JSON) ───►',
-      Offset((p1.dx + p4.dx) / 2, p1.dy - 58),
-      Colors.cyanAccent.withOpacity(0.55),
-      9,
+      Offset((p1.dx + p4.dx) / 2, p1.dy - 66),
+      Colors.cyanAccent.withOpacity(0.88),
+      11.5,
+      bold: true,
     );
     _drawText(
       canvas,
@@ -1844,9 +1820,10 @@ class _ApiFlowPainter extends CustomPainter {
           : (isStreaming
               ? '◄═══ SSE STREAMING: CHUNK TOKEN-PER-TOKEN ◄═══'
               : '◄─── HTTP RESPONSE (200 OK + Risultato JSON) ◄───'),
-      Offset((p1.dx + p4.dx) / 2, p1.dy + 58),
-      (isError ? const Color(0xFFFF5252) : const Color(0xFF69F0AE)).withOpacity(0.65),
-      9,
+      Offset((p1.dx + p4.dx) / 2, p1.dy + 66),
+      (isError ? const Color(0xFFFF5252) : const Color(0xFF69F0AE)).withOpacity(0.9),
+      11.5,
+      bold: true,
     );
   }
 
@@ -1860,12 +1837,11 @@ class _ApiFlowPainter extends CustomPainter {
     Color errColor,
   ) {
     if (currentStep == ApiStep.idle) {
-      // Piccoli impulsi di standby lungo il canale
       final double x = clientPos.dx + (serverPos.dx - clientPos.dx) * animPhase;
       final Paint pulse = Paint()
-        ..color = Colors.cyanAccent.withOpacity(0.35)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-      canvas.drawCircle(Offset(x, clientPos.dy - 18), 4, pulse);
+        ..color = Colors.cyanAccent.withOpacity(0.45)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      canvas.drawCircle(Offset(x, clientPos.dy - 22), 5, pulse);
       return;
     }
 
@@ -1875,33 +1851,33 @@ class _ApiFlowPainter extends CustomPainter {
 
     switch (currentStep) {
       case ApiStep.clientSerialize:
-        packetPos = Offset.lerp(clientPos, tlsPos, animPhase * 0.35)!.translate(0, -18);
+        packetPos = Offset.lerp(clientPos, tlsPos, animPhase * 0.35)!.translate(0, -22);
         packetLabel = 'JSON + API_KEY';
         packetColor = const Color(0xFF00E5FF);
         break;
       case ApiStep.networkTransit:
-        packetPos = Offset.lerp(clientPos, gatewayPos, animPhase)!.translate(0, -18);
+        packetPos = Offset.lerp(clientPos, gatewayPos, animPhase)!.translate(0, -22);
         packetLabel = 'TLS ENCRYPTED';
         packetColor = const Color(0xFF40C4FF);
         break;
       case ApiStep.gatewayAuth:
-        packetPos = gatewayPos.translate(0, -24);
+        packetPos = gatewayPos.translate(0, -28);
         packetLabel = isError ? 'REJECT ${_scenarioCode(scenario)}' : 'AUTH OK ✓';
         packetColor = isError ? errColor : const Color(0xFFFFAB40);
         break;
       case ApiStep.serverInference:
-        packetPos = Offset.lerp(gatewayPos, serverPos, animPhase)!.translate(0, -18);
+        packetPos = Offset.lerp(gatewayPos, serverPos, animPhase)!.translate(0, -22);
         packetLabel = 'INFERENZA LLM';
         packetColor = const Color(0xFFE040FB);
         break;
       case ApiStep.responseTransit:
         final Offset start = isError ? gatewayPos : serverPos;
-        packetPos = Offset.lerp(start, clientPos, animPhase)!.translate(0, 18);
+        packetPos = Offset.lerp(start, clientPos, animPhase)!.translate(0, 22);
         packetLabel = isError ? 'ERR ${_scenarioCode(scenario)}' : (isStreaming ? 'SSE CHUNKS' : '200 OK JSON');
         packetColor = isError ? errColor : const Color(0xFF69F0AE);
         break;
       case ApiStep.clientParsed:
-        packetPos = clientPos.translate(0, 24);
+        packetPos = clientPos.translate(0, 28);
         packetLabel = 'UI AGGIORNATA';
         packetColor = isError ? errColor : const Color(0xFF69F0AE);
         break;
@@ -1910,11 +1886,10 @@ class _ApiFlowPainter extends CustomPainter {
     }
 
     if (packetPos != null) {
-      // Se siamo in modalità streaming durante responseTransit, disegna un treno di mini-pacchetti token!
       if (isStreaming && currentStep == ApiStep.responseTransit && !isError) {
         for (int k = 0; k < 4; k++) {
           double t = (animPhase + k * 0.22) % 1.0;
-          Offset pos = Offset.lerp(serverPos, clientPos, t)!.translate(0, 18);
+          Offset pos = Offset.lerp(serverPos, clientPos, t)!.translate(0, 22);
           _drawPacketBox(canvas, pos, 'chunk[$k]', const Color(0xFF69F0AE));
         }
       } else {
@@ -1925,12 +1900,12 @@ class _ApiFlowPainter extends CustomPainter {
 
   void _drawPacketBox(Canvas canvas, Offset center, String label, Color color) {
     final Paint glow = Paint()
-      ..color = color.withOpacity(0.35)
+      ..color = color.withOpacity(0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawCircle(center, 16, glow);
+    canvas.drawCircle(center, 18, glow);
 
     final RRect box = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: center, width: 88, height: 22),
+      Rect.fromCenter(center: center, width: 112, height: 26),
       const Radius.circular(6),
     );
     canvas.drawRRect(box, Paint()..color = const Color(0xFF090D1A));
@@ -1939,9 +1914,9 @@ class _ApiFlowPainter extends CustomPainter {
       Paint()
         ..color = color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4,
+        ..strokeWidth = 1.6,
     );
-    _drawText(canvas, label, center, color, 8.5, bold: true);
+    _drawText(canvas, label, center, color, 10.5, bold: true);
   }
 
   void _drawArchNode(
@@ -1953,8 +1928,8 @@ class _ApiFlowPainter extends CustomPainter {
     required Color color,
     required bool active,
   }) {
-    const double w = 118;
-    const double h = 76;
+    const double w = 138;
+    const double h = 88;
     final RRect rect = RRect.fromRectAndRadius(
       Rect.fromCenter(center: pos, width: w, height: h),
       const Radius.circular(10),
@@ -1962,31 +1937,31 @@ class _ApiFlowPainter extends CustomPainter {
 
     if (active) {
       final Paint glow = Paint()
-        ..color = color.withOpacity(0.28)
+        ..color = color.withOpacity(0.32)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
       canvas.drawRRect(rect.inflate(6), glow);
     }
 
     canvas.drawRRect(
       rect,
-      Paint()..color = const Color(0xFF0A0F1F).withOpacity(0.95),
+      Paint()..color = const Color(0xFF0A0F1F).withOpacity(0.96),
     );
     canvas.drawRRect(
       rect,
       Paint()
-        ..color = active ? color : color.withOpacity(0.35)
+        ..color = active ? color : color.withOpacity(0.45)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = active ? 2.0 : 1.0,
+        ..strokeWidth = active ? 2.2 : 1.2,
     );
 
-    _drawText(canvas, title, pos.translate(0, -18), color, 10, bold: true);
-    _drawText(canvas, subtitle, pos.translate(0, -2), Colors.white70, 8.5);
+    _drawText(canvas, title, pos.translate(0, -22), color, 12, bold: true);
+    _drawText(canvas, subtitle, pos.translate(0, -2), Colors.white.withOpacity(0.88), 10.5);
     _drawText(
       canvas,
       detail,
-      pos.translate(0, 16),
-      active ? Colors.white : Colors.white54,
-      8.5,
+      pos.translate(0, 19),
+      active ? Colors.white : Colors.white.withOpacity(0.75),
+      10.5,
       bold: active,
     );
   }

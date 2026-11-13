@@ -47,6 +47,7 @@ class AcademicShell extends StatefulWidget {
 
 class _AcademicShellState extends State<AcademicShell> {
   int _selectedIndex = 0;
+  double _textScale = 1.12; // Scala di default potenziata per massima leggibilità
   late final GenerativeModel _sharedModel;
   late final bool _hasKey;
 
@@ -63,29 +64,33 @@ class _AcademicShellState extends State<AcademicShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          _buildTopAcademicNavBar(),
-          Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: [
-                NeuralWorkspace(
-                  onOpenApiLab: () => setState(() => _selectedIndex = 1),
-                ),
-                ApiLabWorkspace(
-                  geminiModel: _sharedModel,
-                  hasValidKey: _hasKey,
-                ),
-                RagLabWorkspace(
-                  geminiModel: _sharedModel,
-                  hasValidKey: _hasKey,
-                ),
-              ],
+    final mq = MediaQuery.of(context);
+    return MediaQuery(
+      data: mq.copyWith(textScaler: TextScaler.linear(_textScale)),
+      child: Scaffold(
+        body: Column(
+          children: [
+            _buildTopAcademicNavBar(),
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: [
+                  NeuralWorkspace(
+                    onOpenApiLab: () => setState(() => _selectedIndex = 1),
+                  ),
+                  ApiLabWorkspace(
+                    geminiModel: _sharedModel,
+                    hasValidKey: _hasKey,
+                  ),
+                  RagLabWorkspace(
+                    geminiModel: _sharedModel,
+                    hasValidKey: _hasKey,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -117,19 +122,19 @@ class _AcademicShellState extends State<AcademicShell> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF080916),
         border: Border(
-          bottom: BorderSide(color: Colors.cyanAccent.withOpacity(0.18), width: 1),
+          bottom: BorderSide(color: Colors.cyanAccent.withOpacity(0.22), width: 1),
         ),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 12),
         ],
       ),
       child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
+        spacing: 14,
+        runSpacing: 10,
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
@@ -138,8 +143,8 @@ class _AcademicShellState extends State<AcademicShell> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 10,
-                height: 10,
+                width: 11,
+                height: 11,
                 decoration: BoxDecoration(
                   color: Colors.cyanAccent,
                   shape: BoxShape.circle,
@@ -148,14 +153,14 @@ class _AcademicShellState extends State<AcademicShell> {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'NEURAL LENS // ACADEMIC LAB',
                     style: GoogleFonts.spaceMono(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       letterSpacing: 1.5,
@@ -163,69 +168,120 @@ class _AcademicShellState extends State<AcademicShell> {
                   ),
                   Text(
                     'Visualizzatore Interattivo di Meccanismi AI & Architetture Moderne',
-                    style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 9.5),
+                    style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 11),
                   ),
                 ],
               ),
             ],
           ),
 
-          // Selettori Moduli Didattici
+          // Selettori Moduli Didattici + Controllo Zoom Testo
           Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: modules.map((m) {
-              final bool active = _selectedIndex == m.$1;
-              final Color col = m.$5;
-              return InkWell(
-                onTap: () => setState(() => _selectedIndex = m.$1),
-                borderRadius: BorderRadius.circular(8),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: active ? col.withOpacity(0.16) : Colors.white.withOpacity(0.03),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: active ? col : Colors.white.withOpacity(0.1),
-                      width: active ? 1.3 : 1.0,
-                    ),
-                    boxShadow: active
-                        ? [BoxShadow(color: col.withOpacity(0.18), blurRadius: 10)]
-                        : [],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(m.$2, size: 16, color: active ? col : Colors.white54),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            m.$3,
-                            style: GoogleFonts.spaceMono(
-                              color: active ? col : Colors.white70,
-                              fontSize: 10,
-                              fontWeight: active ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                          Text(
-                            m.$4,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(active ? 0.65 : 0.35),
-                              fontSize: 8.5,
-                            ),
-                          ),
-                        ],
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ...modules.map((m) {
+                final bool active = _selectedIndex == m.$1;
+                final Color col = m.$5;
+                return InkWell(
+                  onTap: () => setState(() => _selectedIndex = m.$1),
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: active ? col.withOpacity(0.18) : Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: active ? col : Colors.white.withOpacity(0.18),
+                        width: active ? 1.4 : 1.0,
                       ),
-                    ],
+                      boxShadow: active
+                          ? [BoxShadow(color: col.withOpacity(0.2), blurRadius: 10)]
+                          : [],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(m.$2, size: 18, color: active ? col : Colors.white70),
+                        const SizedBox(width: 9),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              m.$3,
+                              style: GoogleFonts.spaceMono(
+                                color: active ? col : Colors.white,
+                                fontSize: 11,
+                                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            Text(
+                              m.$4,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(active ? 0.85 : 0.6),
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
+                );
+              }),
+
+              // Selettore Zoom Testo (A- / A / A+)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white24),
                 ),
-              );
-            }).toList(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.text_fields, size: 15, color: Colors.cyanAccent),
+                    const SizedBox(width: 6),
+                    _zoomBtn('100%', 1.0),
+                    const SizedBox(width: 4),
+                    _zoomBtn('112%', 1.12),
+                    const SizedBox(width: 4),
+                    _zoomBtn('125%', 1.25),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _zoomBtn(String label, double scale) {
+    final bool active = (_textScale - scale).abs() < 0.02;
+    return InkWell(
+      onTap: () => setState(() => _textScale = scale),
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: active ? Colors.cyanAccent.withOpacity(0.22) : Colors.transparent,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(
+            color: active ? Colors.cyanAccent : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.spaceMono(
+            color: active ? Colors.cyanAccent : Colors.white70,
+            fontSize: 10,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
@@ -603,13 +659,13 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
                 children: [
                   Text('LAB 01 // RETI NEURALI & LLM',
                       style: GoogleFonts.spaceMono(
-                        fontSize: 18, fontWeight: FontWeight.bold, color: Colors.cyanAccent,
+                        fontSize: 20, fontWeight: FontWeight.bold, color: Colors.cyanAccent,
                         letterSpacing: 1.5,
                         shadows: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 10)],
                       )),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text('Simulatore Didattico Spazio Latente, Softmax & Embedding // Gemini 2.5 Flash',
-                      style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 10)),
+                      style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12)),
                 ],
               ),
             ),
@@ -618,22 +674,22 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
                 onTap: widget.onOpenApiLab,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF69F0AE).withOpacity(0.12),
+                    color: const Color(0xFF69F0AE).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.45)),
+                    border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.55)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.api, size: 14, color: Color(0xFF69F0AE)),
-                      const SizedBox(width: 6),
+                      const Icon(Icons.api, size: 16, color: Color(0xFF69F0AE)),
+                      const SizedBox(width: 7),
                       Text(
                         'Dietro le quinte API ➔',
                         style: GoogleFonts.spaceMono(
                           color: const Color(0xFF69F0AE),
-                          fontSize: 9.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -672,16 +728,16 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   Widget _buildMetricsBar(bool wide) {
     String latency = _metrics.firstTokenMs != null ? '${_metrics.firstTokenMs}ms' : '—';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.35),
+        color: Colors.black.withOpacity(0.45),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.07)),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: wide
           ? Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               _metricCell('TOKEN/s', _metrics.tokensPerSecond.toStringAsFixed(1), Colors.cyanAccent),
-              _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white70),
+              _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white),
               _metricCell('ENTROPIA', _metrics.entropy.toStringAsFixed(2), Colors.purpleAccent),
               _metricCell('LATENZA', latency, const Color(0xFFFF6B35)),
             ])
@@ -689,7 +745,7 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
               spacing: 16, runSpacing: 10, alignment: WrapAlignment.spaceBetween,
               children: [
                 _metricCell('TOKEN/s', _metrics.tokensPerSecond.toStringAsFixed(1), Colors.cyanAccent),
-                _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white70),
+                _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white),
                 _metricCell('ENTROPIA', _metrics.entropy.toStringAsFixed(2), Colors.purpleAccent),
                 _metricCell('LATENZA', latency, const Color(0xFFFF6B35)),
               ],
@@ -700,45 +756,45 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   Widget _metricCell(String label, String value, Color color) => Column(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      Text(label, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 8, letterSpacing: 1)),
-      const SizedBox(height: 2),
-      Text(value, style: GoogleFonts.spaceMono(color: color, fontSize: 13, fontWeight: FontWeight.bold)),
+      Text(label, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 10.5, letterSpacing: 1, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 3),
+      Text(value, style: GoogleFonts.spaceMono(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
     ],
   );
 
   Widget _buildTokenStream() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.4),
+        color: Colors.black.withOpacity(0.5),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.cyan.withOpacity(0.12)),
-        boxShadow: [BoxShadow(color: Colors.cyan.withOpacity(0.04), blurRadius: 20, spreadRadius: 4)],
+        border: Border.all(color: Colors.cyan.withOpacity(0.2)),
+        boxShadow: [BoxShadow(color: Colors.cyan.withOpacity(0.05), blurRadius: 20, spreadRadius: 4)],
       ),
       child: SingleChildScrollView(
         controller: _scrollCtrl,
-        child: Wrap(spacing: 5, runSpacing: 3, children: [
+        child: Wrap(spacing: 6, runSpacing: 4, children: [
           ..._tokens.map((t) {
-            if (t == '\n') return Container(width: double.infinity, height: 8);
+            if (t == '\n') return const SizedBox(width: double.infinity, height: 8);
             if (t.startsWith('>>') || t.startsWith('[')) {
               return SizedBox(
                 width: double.infinity,
-                child: Text(t, style: TextStyle(color: Colors.cyan.withOpacity(0.45), fontSize: 11)),
+                child: Text(t, style: TextStyle(color: Colors.cyanAccent.withOpacity(0.75), fontSize: 13)),
               );
             }
             return TokenWidget(token: t);
           }),
           if (_decodingToken.isNotEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.yellow.withOpacity(0.12),
+                color: Colors.yellow.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: Colors.yellowAccent.withOpacity(0.5)),
+                border: Border.all(color: Colors.yellowAccent.withOpacity(0.6)),
               ),
               child: Text(_decodingToken,
-                  style: const TextStyle(color: Colors.yellowAccent, fontSize: 14, fontFamily: 'monospace')),
+                  style: const TextStyle(color: Colors.yellowAccent, fontSize: 16, fontFamily: 'monospace')),
             ),
         ]),
       ),
@@ -747,22 +803,22 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
 
   Widget _buildProbabilityMatrix() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withOpacity(0.55),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.purple.withOpacity(0.2)),
+        border: Border.all(color: Colors.purple.withOpacity(0.3)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text('SOFTMAX DISTRIBUTION', style: GoogleFonts.spaceMono(color: Colors.purpleAccent, fontSize: 8, letterSpacing: 1.2)),
+          Text('SOFTMAX DISTRIBUTION', style: GoogleFonts.spaceMono(color: Colors.purpleAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
           const Spacer(),
           Text(_isReceiving ? '● LIVE' : '○ IDLE',
-              style: GoogleFonts.spaceMono(color: _isReceiving ? Colors.purpleAccent : Colors.white24, fontSize: 8)),
+              style: GoogleFonts.spaceMono(color: _isReceiving ? Colors.purpleAccent : Colors.white60, fontSize: 10.5)),
         ]),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         if (_candidates.isEmpty)
-          Center(child: Text('In attesa...', style: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 11)))
+          Center(child: Text('In attesa...', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13)))
         else
           ..._candidates.map((c) => _candidateBar(c)),
       ]),
@@ -770,113 +826,114 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   }
 
   Widget _candidateBar(TokenCandidate c) {
-    Color col = c.isSelected ? Colors.cyanAccent : Colors.purple.withOpacity(0.5);
+    Color col = c.isSelected ? Colors.cyanAccent : Colors.purpleAccent.withOpacity(0.8);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      padding: const EdgeInsets.symmetric(vertical: 3.5),
       child: Row(children: [
         SizedBox(
-          width: 90,
+          width: 110,
           child: Text(
             '${c.isSelected ? '▶ ' : '  '}${c.word}',
             style: GoogleFonts.spaceMono(
-              color: col, fontSize: 10,
+              color: col, fontSize: 12,
+              fontWeight: c.isSelected ? FontWeight.bold : FontWeight.normal,
               decoration: c.isSelected ? null : TextDecoration.lineThrough,
-              decorationColor: Colors.red.withOpacity(0.4),
+              decorationColor: Colors.red.withOpacity(0.5),
             ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Expanded(
           child: Stack(children: [
-            Container(height: 10, decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(3))),
+            Container(height: 12, decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07), borderRadius: BorderRadius.circular(3))),
             AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOut,
-              height: 10,
-              width: c.probability * 140,
+              height: 12,
+              width: c.probability * 150,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(3),
                 gradient: LinearGradient(
                   colors: c.isSelected
                       ? [const Color(0xFF00BCD4), Colors.cyanAccent]
-                      : [Colors.purple.withOpacity(0.3), Colors.purple.withOpacity(0.5)],
+                      : [Colors.purple.withOpacity(0.4), Colors.purple.withOpacity(0.65)],
                 ),
-                boxShadow: c.isSelected ? [BoxShadow(color: Colors.cyanAccent.withOpacity(0.3), blurRadius: 4)] : [],
+                boxShadow: c.isSelected ? [BoxShadow(color: Colors.cyanAccent.withOpacity(0.35), blurRadius: 4)] : [],
               ),
             ),
           ]),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Text('${(c.probability * 100).toStringAsFixed(1)}%',
-            style: GoogleFonts.spaceMono(color: col, fontSize: 9)),
+            style: GoogleFonts.spaceMono(color: col, fontSize: 11.5, fontWeight: FontWeight.bold)),
       ]),
     );
   }
 
   Widget _buildLegendHUD() {
     return Container(
-      width: 250,
-      padding: const EdgeInsets.all(14),
+      width: 285,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.8),
+        color: Colors.black.withOpacity(0.85),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.cyan.withOpacity(0.2)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10)],
+        border: Border.all(color: Colors.cyan.withOpacity(0.3)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 10)],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('LEGENDA RETE', style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+        Text('LEGENDA RETE', style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
         const SizedBox(height: 10),
         _legendRow(Colors.cyanAccent, 'circle', 'NODO ATTIVO', 'Spazio Latente in elaborazione'),
-        _legendRow(Colors.blue.withOpacity(0.6), 'circle', 'NODO INATTIVO', 'Embedding a riposo'),
+        _legendRow(Colors.blue.shade300, 'circle', 'NODO INATTIVO', 'Embedding a riposo'),
         _legendRow(const Color(0xFFFF6B35), 'circle', 'NODO HOT', 'Alta attenzione storica (heatmap)'),
-        _legendRow(Colors.cyanAccent.withOpacity(0.7), 'line', 'SINAPSI ATTIVA', 'Peso W_{ij} elevato'),
-        _legendRow(Colors.blue.withOpacity(0.2), 'line', 'SINAPSI DEBOLE', 'Peso W_{ij} basso'),
+        _legendRow(Colors.cyanAccent, 'line', 'SINAPSI ATTIVA', 'Peso W_{ij} elevato'),
+        _legendRow(Colors.blue.shade200.withOpacity(0.5), 'line', 'SINAPSI DEBOLE', 'Peso W_{ij} basso'),
       ]),
     );
   }
 
   Widget _legendRow(Color color, String shape, String label, String desc) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 9),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 18, height: 18, child: Center(
+        SizedBox(width: 20, height: 20, child: Center(
           child: shape == 'circle'
-              ? Container(width: 8, height: 8, decoration: BoxDecoration(
+              ? Container(width: 9, height: 9, decoration: BoxDecoration(
                   color: color, shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 4)]))
-              : Container(width: 16, height: 2, color: color),
+                  boxShadow: [BoxShadow(color: color.withOpacity(0.6), blurRadius: 4)]))
+              : Container(width: 18, height: 2.5, color: color),
         )),
         const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const SizedBox(height: 2),
-          Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 9)),
+          Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
         ])),
       ]),
     );
   }
 
   Widget _buildNetworkStatus() {
-    Color c = _isReceiving ? Colors.cyanAccent : Colors.white30;
+    Color c = _isReceiving ? Colors.cyanAccent : Colors.white70;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.65),
+        color: Colors.black.withOpacity(0.78),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: c.withOpacity(0.4)),
-        boxShadow: _isReceiving ? [BoxShadow(color: Colors.cyanAccent.withOpacity(0.12), blurRadius: 8)] : [],
+        border: Border.all(color: c.withOpacity(0.5)),
+        boxShadow: _isReceiving ? [BoxShadow(color: Colors.cyanAccent.withOpacity(0.18), blurRadius: 8)] : [],
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 6, height: 6, decoration: BoxDecoration(
+        Container(width: 8, height: 8, decoration: BoxDecoration(
           color: c, shape: BoxShape.circle,
           boxShadow: _isReceiving ? [BoxShadow(color: Colors.cyanAccent, blurRadius: 4)] : [],
         )),
-        const SizedBox(width: 7),
+        const SizedBox(width: 8),
         Text('RETE NEURALE: $_networkState',
-            style: GoogleFonts.spaceMono(color: c, fontSize: 9, letterSpacing: 1.1)),
+            style: GoogleFonts.spaceMono(color: c, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
       ]),
     );
   }
@@ -961,7 +1018,7 @@ class _TokenWidgetState extends State<TokenWidget> with SingleTickerProviderStat
     opacity: _fade,
     child: SlideTransition(
       position: _slide,
-      child: Text(widget.token, style: TextStyle(color: Colors.white.withOpacity(0.88), fontSize: 15, height: 1.65)),
+      child: Text(widget.token, style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 16, height: 1.65)),
     ),
   );
 }

@@ -109,12 +109,12 @@ class _SemanticCompassState extends State<SemanticCompass>
                 Text('SEMANTIC SPACE',
                     style: GoogleFonts.spaceMono(
                         color: const Color(0xFFB388FF),
-                        fontSize: 9,
+                        fontSize: 11.5,
                         letterSpacing: 1.5,
                         fontWeight: FontWeight.bold)),
                 const Spacer(),
                 Text('Embedding Vettoriale t-SNE',
-                    style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 8, fontStyle: FontStyle.italic)),
+                    style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 10.5, fontStyle: FontStyle.italic)),
               ],
             ),
           ),
@@ -137,17 +137,17 @@ class _SemanticCompassState extends State<SemanticCompass>
           ),
           // Legenda relazioni semantiche (Ora chiara ed esplicita)
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
             child: Wrap(
               alignment: WrapAlignment.center,
-              spacing: 12.0, // Spazio orizzontale tra le voci
-              runSpacing: 4.0, // Spazio verticale se vanno a capo
+              spacing: 14.0,
+              runSpacing: 6.0,
               children: SemanticRelation.values.map((r) => Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(width: 8, height: 8, decoration: BoxDecoration(color: r.color, shape: BoxShape.circle)),
-                  const SizedBox(width: 4),
-                  Text(r.label, style: TextStyle(color: r.color, fontSize: 9)),
+                  Container(width: 9, height: 9, decoration: BoxDecoration(color: r.color, shape: BoxShape.circle)),
+                  const SizedBox(width: 5),
+                  Text(r.label, style: TextStyle(color: r.color, fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
               )).toList(),
             ),
@@ -193,11 +193,11 @@ class _CompassPainter extends CustomPainter {
     canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, size.height), axisPaint);
 
     // ── Label assi ──
-    _drawLabel(canvas, 'dim₁', Offset(size.width - 24, center.dy - 14), Colors.white.withOpacity(0.2), 8);
-    _drawLabel(canvas, 'dim₂', Offset(center.dx + 4, 12), Colors.white.withOpacity(0.2), 8);
+    _drawLabel(canvas, 'dim₁', Offset(size.width - 26, center.dy - 14), Colors.white.withOpacity(0.45), 10.5);
+    _drawLabel(canvas, 'dim₂', Offset(center.dx + 18, 14), Colors.white.withOpacity(0.45), 10.5);
 
     if (currentToken.isEmpty) {
-      _drawLabel(canvas, 'In attesa...', center, Colors.white.withOpacity(0.2), 11);
+      _drawLabel(canvas, 'In attesa...', center, Colors.white.withOpacity(0.45), 13);
       return;
     }
 
@@ -209,42 +209,42 @@ class _CompassPainter extends CustomPainter {
 
       final Paint linePaint = Paint()
         ..style = PaintingStyle.stroke
-        ..color = neighbor.relation.color.withOpacity(0.35)
-        ..strokeWidth = 0.8
+        ..color = neighbor.relation.color.withOpacity(0.5)
+        ..strokeWidth = 1.2
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(center, pos, linePaint);
 
       // Punto satellite
       final Paint dotPaint = Paint()
         ..style = PaintingStyle.fill
-        ..color = neighbor.relation.color.withOpacity(0.85);
-      canvas.drawCircle(pos, 3.5, dotPaint);
+        ..color = neighbor.relation.color.withOpacity(0.95);
+      canvas.drawCircle(pos, 4.5, dotPaint);
 
       // Alone glow sul satellite
       final Paint glowDot = Paint()
         ..style = PaintingStyle.fill
-        ..color = neighbor.relation.color.withOpacity(0.2)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-      canvas.drawCircle(pos, 7, glowDot);
+        ..color = neighbor.relation.color.withOpacity(0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+      canvas.drawCircle(pos, 9, glowDot);
 
       // Etichetta parola
-      _drawLabel(canvas, neighbor.word, pos + const Offset(7, -8), neighbor.relation.color, 9);
+      _drawLabel(canvas, neighbor.word, pos + const Offset(10, -10), neighbor.relation.color, 11.5);
     }
 
     // ── Token centrale (stella principale) ──
     final Paint centralGlow = Paint()
       ..style = PaintingStyle.fill
-      ..color = Colors.cyanAccent.withOpacity(0.15)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
-    canvas.drawCircle(center, 22, centralGlow);
+      ..color = Colors.cyanAccent.withOpacity(0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+    canvas.drawCircle(center, 24, centralGlow);
 
     final Paint centralPaint = Paint()
       ..style = PaintingStyle.fill
       ..color = Colors.cyanAccent;
-    canvas.drawCircle(center, 5, centralPaint);
+    canvas.drawCircle(center, 6, centralPaint);
 
     // Etichetta token centrale
-    _drawLabel(canvas, currentToken, center + const Offset(0, 18), Colors.cyanAccent, 12);
+    _drawLabel(canvas, currentToken, center + const Offset(0, 20), Colors.cyanAccent, 14);
   }
 
   void _drawLabel(Canvas canvas, String text, Offset position, Color color, double fontSize) {
