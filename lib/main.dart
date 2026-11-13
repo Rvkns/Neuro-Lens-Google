@@ -9,6 +9,8 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'particle_engine.dart';
 import 'globe_painter.dart';
 import 'semantic_compass.dart';
+import 'api_lab.dart';
+import 'rag_lab.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,14 +25,208 @@ class NeuralLensApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Neural Lens v3.0',
+      title: 'Neural Lens v4.0 // Academic Edition',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF06060F),
         textTheme: GoogleFonts.spaceMonoTextTheme(ThemeData.dark().textTheme),
       ),
-      home: const NeuralWorkspace(),
+      home: const AcademicShell(),
+    );
+  }
+}
+
+// ─── SHELL ACCADEMICA MULTI-MODULO (Navigazione Superiore) ───
+class AcademicShell extends StatefulWidget {
+  const AcademicShell({super.key});
+
+  @override
+  State<AcademicShell> createState() => _AcademicShellState();
+}
+
+class _AcademicShellState extends State<AcademicShell> {
+  int _selectedIndex = 0;
+  late final GenerativeModel _sharedModel;
+  late final bool _hasKey;
+
+  @override
+  void initState() {
+    super.initState();
+    String key = const String.fromEnvironment('GEMINI_API_KEY');
+    if (key.isEmpty) {
+      key = dotenv.env['GEMINI_API_KEY'] ?? '';
+    }
+    _hasKey = key.isNotEmpty;
+    _sharedModel = GenerativeModel(model: 'gemini-2.5-flash', apiKey: key);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          _buildTopAcademicNavBar(),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                NeuralWorkspace(
+                  onOpenApiLab: () => setState(() => _selectedIndex = 1),
+                ),
+                ApiLabWorkspace(
+                  geminiModel: _sharedModel,
+                  hasValidKey: _hasKey,
+                ),
+                RagLabWorkspace(
+                  geminiModel: _sharedModel,
+                  hasValidKey: _hasKey,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopAcademicNavBar() {
+    final modules = [
+      (
+        0,
+        Icons.blur_on,
+        'LAB 01 // RETI NEURALI & LLM',
+        'Spazio Latente 3D, Softmax & Embedding',
+        Colors.cyanAccent,
+      ),
+      (
+        1,
+        Icons.api,
+        'LAB 02 // CHIAMATE API & CODICE',
+        'Flusso Client⇄Server, JSON, Status HTTP & SDK',
+        const Color(0xFF69F0AE),
+      ),
+      (
+        2,
+        Icons.hub_outlined,
+        'LAB 03 // PIPELINE RAG & VECTOR DB',
+        'Chunking, Cosine Similarity & Anti-Allucinazione',
+        const Color(0xFFB388FF),
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF080916),
+        border: Border(
+          bottom: BorderSide(color: Colors.cyanAccent.withOpacity(0.18), width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 12),
+        ],
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // Brand Accademico
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Colors.cyanAccent,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: Colors.cyanAccent.withOpacity(0.8), blurRadius: 8),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'NEURAL LENS // ACADEMIC LAB',
+                    style: GoogleFonts.spaceMono(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  Text(
+                    'Visualizzatore Interattivo di Meccanismi AI & Architetture Moderne',
+                    style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 9.5),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Selettori Moduli Didattici
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: modules.map((m) {
+              final bool active = _selectedIndex == m.$1;
+              final Color col = m.$5;
+              return InkWell(
+                onTap: () => setState(() => _selectedIndex = m.$1),
+                borderRadius: BorderRadius.circular(8),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: active ? col.withOpacity(0.16) : Colors.white.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: active ? col : Colors.white.withOpacity(0.1),
+                      width: active ? 1.3 : 1.0,
+                    ),
+                    boxShadow: active
+                        ? [BoxShadow(color: col.withOpacity(0.18), blurRadius: 10)]
+                        : [],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(m.$2, size: 16, color: active ? col : Colors.white54),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            m.$3,
+                            style: GoogleFonts.spaceMono(
+                              color: active ? col : Colors.white70,
+                              fontSize: 10,
+                              fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          Text(
+                            m.$4,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(active ? 0.65 : 0.35),
+                              fontSize: 8.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -76,7 +272,8 @@ class LiveMetrics {
 }
 
 class NeuralWorkspace extends StatefulWidget {
-  const NeuralWorkspace({super.key});
+  final VoidCallback? onOpenApiLab;
+  const NeuralWorkspace({super.key, this.onOpenApiLab});
   @override
   State<NeuralWorkspace> createState() => _NeuralWorkspaceState();
 }
@@ -306,15 +503,13 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: LayoutBuilder(builder: (ctx, constraints) {
-        bool wide = constraints.maxWidth > 900;
-        final panels = [_buildGlobePanel(wide), _divider(wide), _buildAnalysisPanel(wide)];
-        return wide 
-            ? Row(children: panels) 
-            : SingleChildScrollView(child: Column(children: panels));
-      }),
-    );
+    return LayoutBuilder(builder: (ctx, constraints) {
+      bool wide = constraints.maxWidth > 900;
+      final panels = [_buildGlobePanel(wide), _divider(wide), _buildAnalysisPanel(wide)];
+      return wide
+          ? Row(children: panels)
+          : SingleChildScrollView(child: Column(children: panels));
+    });
   }
 
   // ─────────────── PANNELLO SINISTRO ───────────────
@@ -400,15 +595,54 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
       padding: EdgeInsets.all(wide ? 24.0 : 16.0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
-        Text('NEURAL LENS v3.0',
-            style: GoogleFonts.spaceMono(
-              fontSize: 22, fontWeight: FontWeight.bold, color: Colors.cyanAccent,
-              letterSpacing: 2.0,
-              shadows: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 10)],
-            )),
-        const SizedBox(height: 3),
-        Text('Simulatore Didattico LLM // Gemini 2.5 Flash',
-            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('LAB 01 // RETI NEURALI & LLM',
+                      style: GoogleFonts.spaceMono(
+                        fontSize: 18, fontWeight: FontWeight.bold, color: Colors.cyanAccent,
+                        letterSpacing: 1.5,
+                        shadows: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 10)],
+                      )),
+                  const SizedBox(height: 3),
+                  Text('Simulatore Didattico Spazio Latente, Softmax & Embedding // Gemini 2.5 Flash',
+                      style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 10)),
+                ],
+              ),
+            ),
+            if (widget.onOpenApiLab != null)
+              InkWell(
+                onTap: widget.onOpenApiLab,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF69F0AE).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.45)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.api, size: 14, color: Color(0xFF69F0AE)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Dietro le quinte API ➔',
+                        style: GoogleFonts.spaceMono(
+                          color: const Color(0xFF69F0AE),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 14),
 
         // Metriche live
