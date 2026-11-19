@@ -1,184 +1,309 @@
+// ignore_for_file: deprecated_member_use
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'core_engine.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PARTICLE ENGINE v3.0 — Nodi neurali su sfera 3D con sistema di Attenzione
+// PARTICLE ENGINE v5.0 // "HYPERFLUID 3D NEURAL CORE"
+// - Zero allocazioni per frame (z-sort in-place, Random condiviso, TextLayoutCache)
+// - Campo magnetico interattivo: il cursore sposta ed eccita fisicamente i neuroni
+// - Orbita 3D interattiva con inerzia fluida (trascina con mouse o touch)
+// - Impulsi sinaptici luminosi che viaggiano lungo i collegamenti attivi
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Un singolo nodo neurale posizionato su una sfera in 3 dimensioni.
+class SynapticImpulse {
+  int fromIdx;
+  int toIdx;
+  double progress; // 0.0 -> 1.0
+  double speed;
+  Color color;
+
+  SynapticImpulse({
+    required this.fromIdx,
+    required this.toIdx,
+    this.progress = 0.0,
+    this.speed = 0.045,
+    this.color = AuroraPalette.cyan,
+  });
+}
+
 class Particle {
-  // ── Coordinate sferiche native (immutabili) ──
-  final double phi;    // Angolo polare (da 0 a π)
-  final double theta;  // Angolo azimutale (da 0 a 2π)
-  final double radius; // Raggio nella sfera
+  static final Random _sharedRnd = Random();
 
-  // ── Posizione 3D calcolata dalla rotazione del globo ──
+  final int id;
+  final double phi;    // Angolo polare (0..π)
+  final double theta;  // Angolo azimutale (0..2π)
+  final double radius; // Raggio sferico base
+  final int layer;     // 0 = Core profondo, 1 = Corteccia media, 2 = Corteccia esterna
+
   double x3d = 0;
   double y3d = 0;
   double z3d = 0;
 
-  // ── Posizione 2D proiettata su schermo ──
   Offset screenPos = Offset.zero;
   double perspectiveScale = 1.0;
 
-  // ── Fisica di perturbazione locale (scostamento dalla sfera ideale) ──
+  // Fisica elastica 2D per interazione col cursore/touch
+  Offset springOffset = Offset.zero;
   Offset velocity = Offset.zero;
-  Offset acceleration = Offset.zero;
   final double baseMaxSpeed;
-  final double maxForce;
-
-  // ── Sistema di Attenzione ──
-  double activation = 0.0;      // Eccitazione immediata (decade veloce)
-  double attentionWeight = 0.0;  // Peso accumulato (decade lento — Heatmap)
-  double ripplePhase = 0.0;      // Fase dell'onda d'urto (1.0 -> 0.0)
-  String? currentConcept;        // Etichetta semantica assegnata temporaneamente
-  TextPainter? labelPainter;     // OTTIMIZZAZIONE 2: Painter pre-compilato
-
-  // ── Visuale ──
   final double size;
 
+  // Attivazione & Attention Heatmap
+  double activation = 0.0;
+  double attentionWeight = 0.0;
+  double ripplePhase = 0.0;
+  String? currentConcept;
+
   Particle({
+    required this.id,
     required this.phi,
     required this.theta,
     required this.radius,
+    required this.layer,
     this.baseMaxSpeed = 0.8,
-    this.maxForce = 0.04,
-    this.size = 2.0,
+    this.size = 2.6,
   });
 
-  /// Applica una forza al vettore di accelerazione 2D (perturbazione schermo).
-  void applyForce(Offset force) {
-    acceleration += force;
-  }
-
-  /// Eccita il nodo: aumenta sia l'attivazione immediata che il peso storico.
   void excite(double amount, {String? concept}) {
     activation = min(1.0, activation + amount);
-    attentionWeight = min(1.0, attentionWeight + amount * 0.4);
-    
-    // Innesca l'onda d'urto se l'eccitazione è forte
-    if (amount > 0.4) {
+    attentionWeight = min(1.0, attentionWeight + amount * 0.42);
+    if (amount > 0.35) {
       ripplePhase = 1.0;
     }
-
-    if (concept != null && concept != currentConcept) {
+    if (concept != null && concept.isNotEmpty) {
       currentConcept = concept;
-      // OTTIMIZZAZIONE 2: Pre-calcoliamo il testo una volta sola
-      labelPainter = TextPainter(
-        text: TextSpan(
-          text: concept, // Rimosse le parentesi quadre per un look più pulito
-          style: const TextStyle(
-            color: Colors.white, 
-            fontSize: 18.0, 
-            fontFamily: 'monospace',
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
-            shadows: [
-              Shadow(color: Colors.cyanAccent, blurRadius: 6.0),
-              Shadow(color: Color(0xFFFF00FF), blurRadius: 12.0),
-              Shadow(color: Color(0xFFFF00FF), blurRadius: 24.0),
-            ],
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
     }
   }
 
-  /// Aggiorna la proiezione 3D in base alla rotazione globale corrente.
-  /// [rotX] e [rotY] sono gli angoli di rotazione del globo in radianti.
-  void updateProjection(double rotX, double rotY, double breathScale) {
-    // Coordinate cartesiane della posizione sull'anello sferico
-    double r = radius * breathScale;
-    double sx = r * sin(phi) * cos(theta);
-    double sy = r * cos(phi);
-    double sz = r * sin(phi) * sin(theta);
+  /// Proiezione 3D -> 2D + fisica elastica locale in un unico passaggio cache-friendly.
+  void stepAndProject({
+    required double sinX,
+    required double cosX,
+    required double sinY,
+    required double cosY,
+    required double breathScale,
+    required Offset mouseOffset,
+    required bool hasMouse,
+  }) {
+    // 1. Decadimento fisiologico
+    activation = max(0.0, activation - 0.015);
+    attentionWeight = max(0.0, attentionWeight - 0.0028);
+    ripplePhase = max(0.0, ripplePhase - 0.038);
 
-    // Rotazione attorno all'asse Y (rotazione orizzontale del globo)
-    double cosY = cos(rotY), sinY = sin(rotY);
-    double x1 = sx * cosY + sz * sinY;
-    double z1 = -sx * sinY + sz * cosY;
-    double y1 = sy;
+    if (activation < 0.05) {
+      currentConcept = null;
+    }
 
-    // Rotazione attorno all'asse X (lieve inclinazione verticale statica)
-    double cosX = cos(rotX), sinX = sin(rotX);
-    double y2 = y1 * cosX - z1 * sinX;
-    double z2 = y1 * sinX + z1 * cosX;
+    // 2. Coordinate cartesiane sulla sfera con pulsazione armonica
+    final double r = radius * breathScale * (1.0 + activation * 0.06);
+    final double sinPhi = sin(phi);
+    final double sx = r * sinPhi * cos(theta);
+    final double sy = r * cos(phi);
+    final double sz = r * sinPhi * sin(theta);
+
+    // Rotazione asse Y (orizzontale)
+    final double x1 = sx * cosY + sz * sinY;
+    final double z1 = -sx * sinY + sz * cosY;
+
+    // Rotazione asse X (verticale)
+    final double y2 = sy * cosX - z1 * sinX;
+    final double z2 = sy * sinX + z1 * cosX;
 
     x3d = x1;
     y3d = y2;
     z3d = z2;
 
-    // Proiezione prospettica: z più lontano → particella più piccola e buia
-    double fov = 800.0; // Aumentato il campo visivo per la sfera allargata
+    const double fov = 820.0;
     perspectiveScale = fov / (fov + z3d + radius);
-    screenPos = Offset(x3d * perspectiveScale, y3d * perspectiveScale);
-  }
+    final Offset idealPos = Offset(x3d * perspectiveScale, y3d * perspectiveScale);
 
-  /// Aggiorna la fisica di perturbazione 2D e i valori di attivazione.
-  void update(Offset mouseOffset) {
-    // Decadimento fisiologico dell'attivazione
-    activation = max(0.0, activation - 0.018);
-    // L'attention weight decade molto più lentamente (memoria storica)
-    attentionWeight = max(0.0, attentionWeight - 0.003);
-    // Decadimento veloce dell'onda d'urto
-    ripplePhase = max(0.0, ripplePhase - 0.04);
+    // 3. Fisica elastica reattiva al cursore (repulsione magnetica + eccitazione)
+    Offset force = -springOffset * 0.14; // Molla di richiamo verso la posizione sferica
 
-    // Se l'attivazione scende sotto una soglia, dimentica il concetto
-    if (activation < 0.05) {
-      currentConcept = null;
-      labelPainter = null;
-    }
-
-    // Forza di repulsione dal cursore del mouse
-    double mouseDist = (screenPos - mouseOffset).distance;
-    if (mouseDist < 80 && mouseDist > 0) {
-      Offset repulsion = (screenPos - mouseOffset) / mouseDist;
-      double strength = (80 - mouseDist) / 80 * 2.5;
-      applyForce(repulsion * strength);
-    }
-
-    // Forza di ritorno al centro 2D (elastico leggero)
-    if (screenPos.distance > 2) {
-      Offset toCenter = -screenPos;
-      double d = toCenter.distance;
-      Offset desired = (toCenter / d) * (baseMaxSpeed + activation * 3.0);
-      Offset steer = desired - velocity;
-      if (steer.distance > maxForce) {
-        steer = (steer / steer.distance) * maxForce;
+    if (hasMouse) {
+      final Offset currentPos = idealPos + springOffset;
+      final double dx = currentPos.dx - mouseOffset.dx;
+      final double dy = currentPos.dy - mouseOffset.dy;
+      final double distSq = dx * dx + dy * dy;
+      const double interactionRadius = 105.0;
+      if (distSq < interactionRadius * interactionRadius && distSq > 1.0) {
+        final double dist = sqrt(distSq);
+        final double factor = (interactionRadius - dist) / interactionRadius;
+        force += Offset((dx / dist) * factor * 3.2, (dy / dist) * factor * 3.2);
+        // Il passaggio del mouse risveglia dolcemente i neuroni vicini
+        if (activation < 0.35) {
+          activation = min(0.45, activation + factor * 0.045);
+        }
       }
-      applyForce(steer);
     }
 
-    // Vibrazione caotica durante alta attivazione
-    if (activation > 0.1) {
-      final r = Random();
-      applyForce(Offset(
-        (r.nextDouble() - 0.5) * activation * 4.0,
-        (r.nextDouble() - 0.5) * activation * 4.0,
-      ));
+    if (activation > 0.18) {
+      force += Offset(
+        (_sharedRnd.nextDouble() - 0.5) * activation * 1.4,
+        (_sharedRnd.nextDouble() - 0.5) * activation * 1.4,
+      );
     }
 
-    velocity += acceleration;
-    // Limita velocità massima
-    if (velocity.distance > baseMaxSpeed + activation * 4) {
-      velocity = (velocity / velocity.distance) * (baseMaxSpeed + activation * 4);
-    }
-    // NON aggiorniamo screenPos dalla fisica — viene calcolata dall'updateProjection
-    // La velocità si usa solo per perturbazioni interne
-    acceleration = Offset.zero;
+    velocity = (velocity + force) * 0.82; // Smorzamento fluido
+    springOffset += velocity;
+    screenPos = idealPos + springOffset;
   }
 
-  /// Calcola il colore finale basandosi su attivazione immediata e peso attention.
   Color get currentColor {
-    // Base blu scuro → ciano (attivazione) → rosa neon/magenta (attention cumulativa)
-    Color base = const Color(0xFF0D2B6B);
-    Color activated = Colors.cyanAccent;
-    Color hotspot = const Color(0xFFFF00FF); // Magenta Neon!
+    final Color base = layer == 0
+        ? const Color(0xFF312E81) // Indigo profondo per il core
+        : const Color(0xFF1E3A8A); // Blu reale per la corteccia
+    const Color activated = AuroraPalette.cyan;
+    const Color hotspot = Color(0xFFF43F5E); // Rosa/Corallo bioluminescente per Attention
 
-    // Prima miscela attivazione immediata
-    Color mid = Color.lerp(base, activated, activation) ?? base;
-    // Poi sovrapponi il peso storico (heatmap attention)
-    return Color.lerp(mid, hotspot, attentionWeight * 0.7) ?? mid;
+    final Color mid = Color.lerp(base, activated, activation) ?? base;
+    return Color.lerp(mid, hotspot, attentionWeight * 0.78) ?? mid;
+  }
+}
+
+/// Motore di simulazione autonomo basato su [ChangeNotifier] per ridipingere solo il Canvas
+/// senza mai ricostruire i widget dell'interfaccia (0 chiamate a `setState` durante il loop).
+class NeuralSimulationEngine extends ChangeNotifier {
+  final List<Particle> particles = [];
+  final List<Particle> sortedParticles = [];
+  final List<SynapticImpulse> impulses = [];
+  final Random _rnd = Random();
+
+  double rotX = 0.32;
+  double rotY = 0.0;
+  double _velRotX = 0.0;
+  double _velRotY = 0.0;
+  bool isDragging = false;
+
+  Offset mouseOffset = Offset.zero;
+  bool hasMouse = false;
+  double _timePhase = 0.0;
+
+  NeuralSimulationEngine({int count = 148}) {
+    final double golden = pi * (3.0 - sqrt(5.0));
+    for (int i = 0; i < count; i++) {
+      final double y = 1.0 - (i / (count - 1)) * 2.0;
+      final double theta = golden * i;
+      final int layer = i % 5 == 0 ? 0 : (i % 2 == 0 ? 1 : 2);
+      final double baseR = layer == 0
+          ? 155.0 + _rnd.nextDouble() * 45.0
+          : (layer == 1
+              ? 245.0 + _rnd.nextDouble() * 45.0
+              : 305.0 + _rnd.nextDouble() * 55.0);
+
+      final p = Particle(
+        id: i,
+        phi: acos(y.clamp(-1.0, 1.0)),
+        theta: theta,
+        radius: baseR,
+        layer: layer,
+        baseMaxSpeed: 0.7 + _rnd.nextDouble() * 0.6,
+        size: layer == 0 ? 3.4 : (2.4 + _rnd.nextDouble() * 2.6),
+      );
+      particles.add(p);
+      sortedParticles.add(p);
+    }
+  }
+
+  void onPointerHover(Offset localCentered) {
+    mouseOffset = localCentered;
+    hasMouse = true;
+  }
+
+  void onPointerExit() {
+    hasMouse = false;
+    isDragging = false;
+  }
+
+  void onPanUpdate(Offset delta) {
+    isDragging = true;
+    _velRotY = delta.dx * 0.0065;
+    _velRotX = (-delta.dy * 0.0065).clamp(-0.08, 0.08);
+    rotY += _velRotY;
+    rotX = (rotX + _velRotX).clamp(-1.1, 1.1);
+  }
+
+  void onPanEnd() {
+    isDragging = false;
+  }
+
+  /// Avanza di un frame la fisica 3D, ordina in-place per profondità e notifica solo il CustomPainter.
+  void tick() {
+    _timePhase += 0.022;
+
+    if (!isDragging) {
+      rotY += 0.0032 + _velRotY;
+      rotX = (rotX + _velRotX).clamp(-1.1, 1.1);
+      _velRotX *= 0.92;
+      _velRotY *= 0.92;
+    }
+
+    final double breath = 1.0 + sin(_timePhase) * 0.045;
+    final double sinX = sin(rotX), cosX = cos(rotX);
+    final double sinY = sin(rotY), cosY = cos(rotY);
+
+    for (int i = 0; i < particles.length; i++) {
+      particles[i].stepAndProject(
+        sinX: sinX,
+        cosX: cosX,
+        sinY: sinY,
+        cosY: cosY,
+        breathScale: breath,
+        mouseOffset: mouseOffset,
+        hasMouse: hasMouse,
+      );
+    }
+
+    // Z-sort in-place (nessuna allocazione di memoria)
+    sortedParticles.sort((a, b) => a.z3d.compareTo(b.z3d));
+
+    // Aggiorna impulsi sinaptici viaggianti
+    for (int i = impulses.length - 1; i >= 0; i--) {
+      final imp = impulses[i];
+      imp.progress += imp.speed;
+      if (imp.progress >= 1.0) {
+        impulses.removeAt(i);
+      }
+    }
+
+    notifyListeners();
+  }
+
+  /// Eccita un cluster di neuroni e genera impulsi luminosi tra i nodi attivati.
+  void exciteBurst(int intensity, {List<String>? concepts}) {
+    final int count = min(intensity * 5 + 4, particles.length ~/ 3);
+    final List<int> excitedIndices = [];
+
+    // Limita il numero di etichette visibili contemporaneamente per massima leggibilità
+    int activeLabels = particles.where((p) => p.currentConcept != null).length;
+
+    for (int i = 0; i < count; i++) {
+      final int idx = _rnd.nextInt(particles.length);
+      excitedIndices.add(idx);
+
+      String? conceptToAssign;
+      if (concepts != null && concepts.isNotEmpty && activeLabels < 9 && i < 3) {
+        conceptToAssign = concepts[i % concepts.length];
+        activeLabels++;
+      }
+
+      particles[idx].excite(
+        0.5 + _rnd.nextDouble() * 0.5,
+        concept: conceptToAssign,
+      );
+    }
+
+    // Crea impulsi sinaptici luminosi tra i nodi appena eccitati
+    for (int i = 0; i + 1 < excitedIndices.length && impulses.length < 28; i++) {
+      impulses.add(
+        SynapticImpulse(
+          fromIdx: excitedIndices[i],
+          toIdx: excitedIndices[i + 1],
+          speed: 0.035 + _rnd.nextDouble() * 0.035,
+          color: i.isEven ? AuroraPalette.cyan : const Color(0xFFF43F5E),
+        ),
+      );
+    }
   }
 }

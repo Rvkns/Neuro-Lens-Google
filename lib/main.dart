@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
 import 'dart:math';
 import 'dart:js' as js;
 import 'package:flutter/material.dart';
@@ -6,17 +6,20 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
+import 'core_engine.dart';
 import 'particle_engine.dart';
 import 'globe_painter.dart';
 import 'semantic_compass.dart';
 import 'api_lab.dart';
 import 'rag_lab.dart';
+import 'docker_lab.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await dotenv.load(fileName: ".env");
   } catch (_) {}
+  PerformanceMonitor.instance.start();
   runApp(const NeuralLensApp());
 }
 
@@ -25,19 +28,19 @@ class NeuralLensApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Neural Lens v4.0 // Academic Edition',
+      title: 'Neural Lens v5.0 // HyperFluid Aurora',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF06060F),
-        textTheme: GoogleFonts.spaceMonoTextTheme(ThemeData.dark().textTheme),
+        scaffoldBackgroundColor: AuroraPalette.bgDeep,
+        textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme),
       ),
       home: const AcademicShell(),
     );
   }
 }
 
-// ─── SHELL ACCADEMICA MULTI-MODULO (Navigazione Superiore) ───
+// ─── SHELL ACCADEMICA MULTI-MODULO (Con TickerMode Isolation & Live FPS Engine) ───
 class AcademicShell extends StatefulWidget {
   const AcademicShell({super.key});
 
@@ -47,7 +50,8 @@ class AcademicShell extends StatefulWidget {
 
 class _AcademicShellState extends State<AcademicShell> {
   int _selectedIndex = 0;
-  double _textScale = 1.12; // Scala di default potenziata per massima leggibilità
+  double _textScale = 1.12;
+  bool _isBeginnerMode = true;
   late final GenerativeModel _sharedModel;
   late final bool _hasKey;
 
@@ -62,34 +66,91 @@ class _AcademicShellState extends State<AcademicShell> {
     _sharedModel = GenerativeModel(model: 'gemini-2.5-flash', apiKey: key);
   }
 
+  Color get _activeAccent {
+    switch (_selectedIndex) {
+      case 0:
+        return AuroraPalette.cyan;
+      case 1:
+        return AuroraPalette.mint;
+      case 2:
+        return const Color(0xFFC084FC);
+      default:
+        return const Color(0xFF38BDF8);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     return MediaQuery(
       data: mq.copyWith(textScaler: TextScaler.linear(_textScale)),
       child: Scaffold(
-        body: Column(
-          children: [
-            _buildTopAcademicNavBar(),
-            Expanded(
-              child: IndexedStack(
-                index: _selectedIndex,
-                children: [
-                  NeuralWorkspace(
-                    onOpenApiLab: () => setState(() => _selectedIndex = 1),
-                  ),
-                  ApiLabWorkspace(
-                    geminiModel: _sharedModel,
-                    hasValidKey: _hasKey,
-                  ),
-                  RagLabWorkspace(
-                    geminiModel: _sharedModel,
-                    hasValidKey: _hasKey,
-                  ),
-                ],
-              ),
+        backgroundColor: AuroraPalette.bgDeep,
+        body: AnimatedContainer(
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(0.0, -0.85),
+              radius: 1.55,
+              colors: [
+                _activeAccent.withOpacity(0.11),
+                const Color(0xFF0A0F24),
+                AuroraPalette.bgDeep,
+              ],
+              stops: const [0.0, 0.45, 1.0],
             ),
-          ],
+          ),
+          child: Column(
+            children: [
+              _buildTopAcademicNavBar(),
+              Expanded(
+                child: IndexedStack(
+                  index: _selectedIndex,
+                  children: [
+                    // TickerMode(enabled) ferma al 100% i controller dei tab non visibili -> 0% CPU/GPU spreco!
+                    TickerMode(
+                      enabled: _selectedIndex == 0,
+                      child: RepaintBoundary(
+                        child: NeuralWorkspace(
+                          isBeginnerMode: _isBeginnerMode,
+                          onOpenApiLab: () => setState(() => _selectedIndex = 1),
+                        ),
+                      ),
+                    ),
+                    TickerMode(
+                      enabled: _selectedIndex == 1,
+                      child: RepaintBoundary(
+                        child: ApiLabWorkspace(
+                          geminiModel: _sharedModel,
+                          hasValidKey: _hasKey,
+                          isBeginnerMode: _isBeginnerMode,
+                        ),
+                      ),
+                    ),
+                    TickerMode(
+                      enabled: _selectedIndex == 2,
+                      child: RepaintBoundary(
+                        child: RagLabWorkspace(
+                          geminiModel: _sharedModel,
+                          hasValidKey: _hasKey,
+                          isBeginnerMode: _isBeginnerMode,
+                        ),
+                      ),
+                    ),
+                    TickerMode(
+                      enabled: _selectedIndex == 3,
+                      child: RepaintBoundary(
+                        child: DockerLabWorkspace(
+                          isBeginnerMode: _isBeginnerMode,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -99,85 +160,128 @@ class _AcademicShellState extends State<AcademicShell> {
     final modules = [
       (
         0,
-        Icons.blur_on,
-        'LAB 01 // RETI NEURALI & LLM',
-        'Spazio Latente 3D, Softmax & Embedding',
-        Colors.cyanAccent,
+        Icons.hub_rounded,
+        'LAB 01 // RETI NEURALI 3D',
+        _isBeginnerMode ? 'Come pensa e sceglie le parole' : 'Spazio Latente 3D, Softmax & Embedding',
+        AuroraPalette.cyan,
       ),
       (
         1,
-        Icons.api,
-        'LAB 02 // CHIAMATE API & CODICE',
-        'Flusso Client⇄Server, JSON, Status HTTP & SDK',
-        const Color(0xFF69F0AE),
+        Icons.bolt_rounded,
+        'LAB 02 // CHIAMATE API',
+        _isBeginnerMode ? 'Il "Cameriere" tra App e Server' : 'Flusso Client⇄Server, JSON & Codice',
+        AuroraPalette.mint,
       ),
       (
         2,
-        Icons.hub_outlined,
-        'LAB 03 // PIPELINE RAG & VECTOR DB',
-        'Chunking, Cosine Similarity & Anti-Allucinazione',
-        const Color(0xFFB388FF),
+        Icons.auto_stories_rounded,
+        'LAB 03 // MEMORIA RAG & VETTORI',
+        _isBeginnerMode ? 'Esame a Libro Aperto per l\'AI' : 'Chunking, Vector DB & Anti-Allucinazione',
+        const Color(0xFFC084FC),
+      ),
+      (
+        3,
+        Icons.inventory_2_rounded,
+        'LAB 04 // DOCKER & CONTAINER',
+        _isBeginnerMode ? 'La "Scatola Magica" del Software' : 'Dockerfile, Immagini, Layer & Runtime',
+        const Color(0xFF38BDF8),
       ),
     ];
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFF080916),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF0E152D).withOpacity(0.95),
+            const Color(0xFF080C1B).withOpacity(0.95),
+          ],
+        ),
         border: Border(
-          bottom: BorderSide(color: Colors.cyanAccent.withOpacity(0.22), width: 1),
+          bottom: BorderSide(color: _activeAccent.withOpacity(0.28), width: 1.2),
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 12),
+          BoxShadow(color: Colors.black.withOpacity(0.55), blurRadius: 16, offset: const Offset(0, 4)),
         ],
       ),
       child: Wrap(
-        spacing: 14,
-        runSpacing: 10,
+        spacing: 12,
+        runSpacing: 8,
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // Brand Accademico
+          // Brand + Badge Motore Grafico
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 11,
-                height: 11,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
-                  color: Colors.cyanAccent,
-                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [_activeAccent, const Color(0xFF6366F1)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
                   boxShadow: [
-                    BoxShadow(color: Colors.cyanAccent.withOpacity(0.8), blurRadius: 8),
+                    BoxShadow(color: _activeAccent.withOpacity(0.45), blurRadius: 12),
                   ],
                 ),
+                child: const Icon(Icons.auto_awesome, color: Color(0xFF050711), size: 19),
               ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'NEURAL LENS // ACADEMIC LAB',
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.5,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'NEURAL LENS',
+                        style: AuroraPalette.headingStyle(
+                          size: 15.5,
+                          color: Colors.white,
+                          letterSpacing: 0.9,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _activeAccent.withOpacity(0.16),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _activeAccent.withOpacity(0.45)),
+                        ),
+                        child: Text(
+                          'v5.0 AURORA',
+                          style: AuroraPalette.monoStyle(size: 9.0, color: _activeAccent),
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    'Visualizzatore Interattivo di Meccanismi AI & Architetture Moderne',
-                    style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 11),
+                    _isBeginnerMode
+                        ? 'Percorso "Parto da Zero": spiegazioni visive ed esempi interattivi'
+                        : 'Modalità Accademica Tecnica: telemetria e architettura ingegneristica',
+                    style: AuroraPalette.bodyStyle(
+                      size: 11,
+                      color: _isBeginnerMode ? AuroraPalette.mint : AuroraPalette.cyan,
+                      weight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
 
-          // Selettori Moduli Didattici + Controllo Zoom Testo
+          // Selettori Moduli Didattici + Switch Livello + FPS Badge + Zoom
           Wrap(
-            spacing: 10,
+            spacing: 8,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
@@ -186,19 +290,27 @@ class _AcademicShellState extends State<AcademicShell> {
                 final Color col = m.$5;
                 return InkWell(
                   onTap: () => setState(() => _selectedIndex = m.$1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(11),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),
                     decoration: BoxDecoration(
-                      color: active ? col.withOpacity(0.18) : Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(8),
+                      gradient: active
+                          ? LinearGradient(
+                              colors: [col.withOpacity(0.24), col.withOpacity(0.08)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: active ? null : Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(11),
                       border: Border.all(
-                        color: active ? col : Colors.white.withOpacity(0.18),
-                        width: active ? 1.4 : 1.0,
+                        color: active ? col : Colors.white.withOpacity(0.14),
+                        width: active ? 1.5 : 1.0,
                       ),
                       boxShadow: active
-                          ? [BoxShadow(color: col.withOpacity(0.2), blurRadius: 10)]
+                          ? [BoxShadow(color: col.withOpacity(0.18), blurRadius: 12)]
                           : [],
                     ),
                     child: Row(
@@ -211,17 +323,17 @@ class _AcademicShellState extends State<AcademicShell> {
                           children: [
                             Text(
                               m.$3,
-                              style: GoogleFonts.spaceMono(
+                              style: AuroraPalette.headingStyle(
                                 color: active ? col : Colors.white,
-                                fontSize: 11,
-                                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                                size: 11,
+                                letterSpacing: 0.4,
                               ),
                             ),
                             Text(
                               m.$4,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(active ? 0.85 : 0.6),
-                                fontSize: 10,
+                              style: AuroraPalette.bodyStyle(
+                                color: Colors.white.withOpacity(active ? 0.9 : 0.62),
+                                size: 10,
                               ),
                             ),
                           ],
@@ -232,23 +344,51 @@ class _AcademicShellState extends State<AcademicShell> {
                 );
               }),
 
-              // Selettore Zoom Testo (A- / A / A+)
+              // Switch Globale: "🌱 Da Zero" vs "🎓 Tecnica"
+              InkWell(
+                onTap: () => setState(() => _isBeginnerMode = !_isBeginnerMode),
+                borderRadius: BorderRadius.circular(10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _isBeginnerMode
+                        ? AuroraPalette.mint.withOpacity(0.16)
+                        : const Color(0xFFC084FC).withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _isBeginnerMode ? AuroraPalette.mint : const Color(0xFFC084FC),
+                      width: 1.3,
+                    ),
+                  ),
+                  child: Text(
+                    _isBeginnerMode ? '🌱 LIVELLO: DA ZERO' : '🎓 LIVELLO: TECNICO',
+                    style: AuroraPalette.headingStyle(
+                      color: _isBeginnerMode ? AuroraPalette.mint : const Color(0xFFC084FC),
+                      size: 10.5,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Badge Prestazioni & FPS Live (Cliccabile per cambiare LOD)
+              _buildPerformanceBadge(),
+
+              // Selettore Zoom Testo
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white24),
+                  color: Colors.white.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: Colors.white12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.text_fields, size: 15, color: Colors.cyanAccent),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.format_size_rounded, size: 14, color: AuroraPalette.cyan),
+                    const SizedBox(width: 4),
                     _zoomBtn('100%', 1.0),
-                    const SizedBox(width: 4),
                     _zoomBtn('112%', 1.12),
-                    const SizedBox(width: 4),
                     _zoomBtn('125%', 1.25),
                   ],
                 ),
@@ -260,26 +400,63 @@ class _AcademicShellState extends State<AcademicShell> {
     );
   }
 
+  Widget _buildPerformanceBadge() {
+    return ValueListenableBuilder<int>(
+      valueListenable: PerformanceMonitor.instance.fps,
+      builder: (context, fpsValue, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: PerformanceMonitor.instance.highQuality,
+          builder: (context, isHighQ, _) {
+            final Color c = isHighQ ? AuroraPalette.cyan : AuroraPalette.amber;
+            return Tooltip(
+              message: 'Motore HyperFluid GPU attivo. Clicca per alternare Ultra / Eco su dispositivi lenti.',
+              child: InkWell(
+                onTap: () => PerformanceMonitor.instance.toggleQualityMode(),
+                borderRadius: BorderRadius.circular(9),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: c.withOpacity(0.11),
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: c.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.speed_rounded, size: 14, color: c),
+                      const SizedBox(width: 5),
+                      Text(
+                        '$fpsValue FPS · ${isHighQ ? "ULTRA" : "ECO"}',
+                        style: AuroraPalette.monoStyle(size: 10, color: c),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _zoomBtn(String label, double scale) {
     final bool active = (_textScale - scale).abs() < 0.02;
     return InkWell(
       onTap: () => setState(() => _textScale = scale),
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
-          color: active ? Colors.cyanAccent.withOpacity(0.22) : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(
-            color: active ? Colors.cyanAccent : Colors.transparent,
-          ),
+          color: active ? AuroraPalette.cyan.withOpacity(0.22) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
           label,
-          style: GoogleFonts.spaceMono(
-            color: active ? Colors.cyanAccent : Colors.white70,
-            fontSize: 10,
-            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+          style: AuroraPalette.monoStyle(
+            color: active ? AuroraPalette.cyan : Colors.white70,
+            size: 9.5,
+            weight: active ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),
@@ -319,7 +496,6 @@ class LiveMetrics {
       tokensPerSecond = elapsed > 0 ? totalTokens / elapsed : 0;
     }
     _lastToken = now;
-    // Entropia simulata di Shannon: H = -Σ p*log2(p)
     entropy = -candidates.fold(0.0, (sum, c) {
       if (c.probability <= 0) return sum;
       return sum + c.probability * (log(c.probability) / log(2));
@@ -329,15 +505,20 @@ class LiveMetrics {
 
 class NeuralWorkspace extends StatefulWidget {
   final VoidCallback? onOpenApiLab;
-  const NeuralWorkspace({super.key, this.onOpenApiLab});
+  final bool isBeginnerMode;
+  const NeuralWorkspace({
+    super.key,
+    this.onOpenApiLab,
+    this.isBeginnerMode = true,
+  });
   @override
   State<NeuralWorkspace> createState() => _NeuralWorkspaceState();
 }
 
 class _NeuralWorkspaceState extends State<NeuralWorkspace>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  final List<Particle> _particles = [];
+  late final AnimationController _controller;
+  late final NeuralSimulationEngine _engine;
 
   final TextEditingController _textCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
@@ -346,51 +527,49 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   final List<String> _tokens = [];
   bool _isReceiving = false;
   late final GenerativeModel _model;
+  bool _hasApiKey = false;
 
-  // Rotazione globo 3D
-  double _globeRotY = 0.0;
-  static const double _autoRotSpeed = 0.003;
+  bool _slowMotionMode = false;
+  double _creativityTemp = 0.6;
 
-  // Posizione mouse relativa al globo (Offset.zero = centro)
-  Offset _mouseOffset = Offset.zero;
+  final List<(String, String, String)> _starterPrompts = [
+    (
+      '✨ 1. Come sceglie le parole?',
+      'Spiega in modo semplice come un\'AI sceglie una parola dopo l\'altra.',
+      'Un modello di intelligenza artificiale non pensa come un umano, ma funziona come un super completamento automatico: legge le parole scritte finora, calcola nel suo cervello digitale le probabilità di tutte le parole possibili e sceglie il mattoncino (chiamato Token) con la percentuale più adatta per continuare la frase!'
+    ),
+    (
+      '🧠 2. Cos\'è una Rete Neurale?',
+      'Cos\'è una rete neurale artificiale spiegata a chi parte da zero?',
+      'Una rete neurale è una grande costellazione di nodi matematici chiamati neuroni collegati tra loro da fili luminosi detti sinapsi. Quando fai una domanda, gli impulsi di luce attraversano i collegamenti più forti accendendo i concetti correlati proprio come vedi brillare nel globo 3D qui a sinistra!'
+    ),
+    (
+      '🧩 3. Cosa sono i Token?',
+      'Cosa significa la parola Token nell\'intelligenza artificiale?',
+      'Per leggere e scrivere velocemente, l\'intelligenza artificiale spezza ogni frase in piccoli mattoncini chiamati Token: un Token può essere una parola intera oppure una sillaba. Ogni volta che vedi apparire un nuovo blocchetto illuminato qui sotto, la rete ha appena completato un intero ciclo di calcolo!'
+    ),
+  ];
 
-  // Token Probability Matrix
   List<TokenCandidate> _candidates = [];
   String _decodingToken = "";
 
-  // Semantic Compass
   String _currentSemanticToken = "";
   List<SemanticWord> _semanticNeighbors = [];
 
-  // Metriche live
   final LiveMetrics _metrics = LiveMetrics();
-  String _networkState = "IN ATTESA";
+  String _networkState = "PRONTA · INTERATTIVA";
 
   @override
   void initState() {
     super.initState();
-    _initParticles();
+    _engine = NeuralSimulationEngine(count: 148);
     _initGemini();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
-    _controller.addListener(_onFrame);
-  }
-
-  void _initParticles() {
-    final rnd = Random();
-    // Distribuzione di Fibonacci sulla sfera per massima uniformità
-    final golden = pi * (3 - sqrt(5));
-    for (int i = 0; i < 150; i++) {
-      double y = 1 - (i / 149) * 2;
-      double r = sqrt(1 - y * y);
-      double phi = golden * i;
-      _particles.add(Particle(
-        phi: acos(y.clamp(-1.0, 1.0)),
-        theta: phi,
-        radius: 280.0 + rnd.nextDouble() * 110.0, // Raggio aumentato di circa 80%
-        baseMaxSpeed: 0.6 + rnd.nextDouble() * 0.8,
-        size: rnd.nextDouble() * 3.5 + 2.5, // Nodi più grandi e visibili
-      ));
-    }
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+    // Il listener aggiorna SOLO il NeuralSimulationEngine (ChangeNotifier) senza chiamare setState()!
+    _controller.addListener(_engine.tick);
   }
 
   void _initGemini() {
@@ -398,31 +577,8 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
     if (key.isEmpty) {
       key = dotenv.env['GEMINI_API_KEY'] ?? '';
     }
+    _hasApiKey = key.isNotEmpty;
     _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: key);
-  }
-
-  void _onFrame() {
-    if (!mounted) return;
-    _globeRotY += _autoRotSpeed;
-    double breath = 1.0 + sin(_controller.value * 2 * pi) * 0.06;
-    for (var p in _particles) {
-      p.updateProjection(0.35, _globeRotY, breath);
-      p.update(_mouseOffset);
-    }
-    // OTTIMIZZAZIONE 1: Nessun setState generale chiamato qui. 
-    // L'UI principale smette di ricalcolarsi 60 volte al secondo!
-  }
-
-  void _exciteNetwork(int n, {List<String>? concepts}) {
-    final rnd = Random();
-    int count = min(n * 4, _particles.length ~/ 2);
-    for (int i = 0; i < count; i++) {
-      String? assignedConcept;
-      if (concepts != null && concepts.isNotEmpty) {
-        assignedConcept = concepts[rnd.nextInt(concepts.length)];
-      }
-      _particles[rnd.nextInt(_particles.length)].excite(0.4 + rnd.nextDouble() * 0.6, concept: assignedConcept);
-    }
   }
 
   void _playTickSound() {
@@ -435,9 +591,9 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
           o.connect(g); g.connect(ctx.destination);
           o.type = 'sine';
           o.frequency.value = 880 + Math.random() * 440;
-          g.gain.setValueAtTime(0.04, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
-          o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.08);
+          g.gain.setValueAtTime(0.035, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.07);
+          o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.07);
         })()'''
       ]);
     } catch (_) {}
@@ -445,14 +601,16 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
 
   void _updateCandidates(String token) {
     final rnd = Random();
-    double winP = 0.60 + rnd.nextDouble() * 0.28;
+    double baseWin = (0.88 - (_creativityTemp * 0.30)).clamp(0.42, 0.92);
+    double winP = (baseWin + (rnd.nextDouble() - 0.5) * 0.08).clamp(0.40, 0.94);
     double rem = 1.0 - winP;
     List<String> alts = [_mutateSuffix(token, rnd), _scramble(token, rnd)];
     List<double> altP = [rem * 0.58, rem * 0.42];
     final cands = [
       TokenCandidate(word: token, probability: winP, isSelected: true),
-      ...alts.asMap().entries.map((e) =>
-          TokenCandidate(word: e.value, probability: altP[e.key], isSelected: false)),
+      ...alts.asMap().entries.map(
+            (e) => TokenCandidate(word: e.value, probability: altP[e.key], isSelected: false),
+          ),
     ];
     _metrics.onToken(cands);
     setState(() => _candidates = cands);
@@ -472,66 +630,85 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   }
 
   Future<void> _decodeEffect(String token) async {
-    const g = '!@#\$%^█▓▒░▐▌><{}~';
+    const g = '01◊◈▓▒░><~';
     final r = Random();
-    for (int i = 0; i < 4; i++) {
+    final stepMs = _slowMotionMode ? 105 : 32;
+    for (int i = 0; i < 3; i++) {
       if (!mounted) break;
       setState(() => _decodingToken = List.generate(token.length, (_) => g[r.nextInt(g.length)]).join());
-      await Future.delayed(const Duration(milliseconds: 45));
+      await Future.delayed(Duration(milliseconds: stepMs));
     }
     if (mounted) setState(() => _decodingToken = "");
   }
 
-  Future<void> _sendPrompt() async {
-    final text = _textCtrl.text.trim();
-    if (text.isEmpty) return;
+  Future<void> _emitWordsDidactically(String fullText) async {
+    final words = RegExp(r'(\S+|\n)').allMatches(fullText);
+    for (final m in words) {
+      if (!mounted) break;
+      final w = m.group(0)!;
+      _updateCandidates(w);
+      _playTickSound();
+      await _decodeEffect(w);
+
+      final neighbors = generateSemanticNeighbors(w);
+      final List<String> currentConcepts = [];
+      if (w.trim().isNotEmpty && w.trim().length > 1) {
+        currentConcepts.add(w.trim());
+        currentConcepts.addAll(neighbors.map((e) => e.word));
+      }
+
+      _engine.exciteBurst(1, concepts: currentConcepts);
+
+      setState(() {
+        _tokens.add(w == '\n' ? '\n' : w);
+        _currentSemanticToken = w;
+        _semanticNeighbors = neighbors;
+      });
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _sendPrompt({String? customPrompt, String? fallbackAnswer}) async {
+    final text = (customPrompt ?? _textCtrl.text).trim();
+    if (text.isEmpty || _isReceiving) return;
     _textCtrl.clear();
     _metrics.onStreamStart();
     setState(() {
       _tokens.clear();
       _candidates = [];
       _decodingToken = "";
-      _tokens.add(">> Inizializzazione rete neurale...\n");
+      _tokens.add(">> Domanda: \"$text\"\n");
       _isReceiving = true;
-      _networkState = "ELABORAZIONE";
+      _networkState = "ELABORAZIONE SINAPTICA ATTIVA";
     });
+
     try {
-      final stream = _model.generateContentStream([Content.text(text)]);
-      await for (final chunk in stream) {
-        if (!mounted) break;
-        if (chunk.text == null || chunk.text!.isEmpty) continue;
-        final words = RegExp(r'(\S+|\n)').allMatches(chunk.text!);
-        for (final m in words) {
+      if (_hasApiKey) {
+        final stream = _model.generateContentStream([Content.text(text)]);
+        await for (final chunk in stream) {
           if (!mounted) break;
-          final w = m.group(0)!;
-          _updateCandidates(w);
-          _playTickSound();
-          await _decodeEffect(w);
-
-          List<String> currentConcepts = [];
-          if (w.trim().isNotEmpty && w.trim().length > 1) {
-             currentConcepts.add(w.trim());
-             currentConcepts.addAll(generateSemanticNeighbors(w).map((e) => e.word));
-          }
-          
-          _exciteNetwork(1, concepts: currentConcepts);
-
-          setState(() {
-            _tokens.add(w == '\n' ? '\n' : w);
-            _currentSemanticToken = w;
-            _semanticNeighbors = generateSemanticNeighbors(w);
-          });
-          _scrollToBottom();
+          if (chunk.text == null || chunk.text!.isEmpty) continue;
+          await _emitWordsDidactically(chunk.text!);
         }
+      } else {
+        final simulated = fallbackAnswer ??
+            'Ecco una dimostrazione didattica per la tua domanda ("$text"): '
+                'la rete neurale legge ogni parola, accende i neuroni collegati nel globo 3D a sinistra, '
+                'mette in gara le possibili parole successive nella barra delle probabilità qui sotto '
+                'e compone la frase finale un mattoncino (Token) dopo l\'altro!';
+        await _emitWordsDidactically(simulated);
       }
-    } catch (e) {
-      setState(() => _tokens.add("\n[ERRORE]: $e"));
+    } catch (_) {
+      final simulated = fallbackAnswer ??
+          'Simulazione didattica attiva: la rete neurale analizza "$text", attiva i nodi semantici nel globo 3D '
+              'e seleziona parola per parola il Token con la probabilità più adatta in base al livello di fantasia scelto!';
+      await _emitWordsDidactically(simulated);
     } finally {
       if (mounted) {
         setState(() {
-          _tokens.add("\n>> Trasmissione completata.");
+          _tokens.add("\n>> Generazione completata · Clicca o trascina la sfera 3D per esplorare i neuroni.");
           _isReceiving = false;
-          _networkState = "IN ATTESA";
+          _networkState = "PRONTA · INTERATTIVA";
           _decodingToken = "";
         });
         _scrollToBottom();
@@ -542,15 +719,20 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent + 100,
-            duration: const Duration(milliseconds: 120), curve: Curves.easeOut);
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent + 80,
+          duration: const Duration(milliseconds: 110),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_engine.tick);
     _controller.dispose();
+    _engine.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     _focusNode.dispose();
@@ -560,7 +742,7 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (ctx, constraints) {
-      bool wide = constraints.maxWidth > 900;
+      final bool wide = constraints.maxWidth > 920;
       final panels = [_buildGlobePanel(wide), _divider(wide), _buildAnalysisPanel(wide)];
       return wide
           ? Row(children: panels)
@@ -568,457 +750,833 @@ class _NeuralWorkspaceState extends State<NeuralWorkspace>
     });
   }
 
-  // ─────────────── PANNELLO SINISTRO ───────────────
+  // ─────────────── PANNELLO SINISTRO (② IL CERVELLO 3D INTERATTIVO) ───────────────
   Widget _buildGlobePanel(bool wide) {
-    Widget globe = MouseRegion(
-      onHover: (e) {
-        final box = context.findRenderObject() as RenderBox?;
-        if (box == null) return;
-        final size = box.size;
-        setState(() {
-          _mouseOffset = Offset(
-            e.localPosition.dx - (wide ? size.width / 4 : size.width / 2),
-            e.localPosition.dy - (wide ? size.height / 2 : 200),
-          );
-        });
+    Widget globe = LayoutBuilder(
+      builder: (ctx, box) {
+        return MouseRegion(
+          cursor: SystemMouseCursors.grab,
+          onHover: (e) {
+            // Nessun setState()! Aggiorna solo il motore 3D ad alta velocità.
+            _engine.onPointerHover(
+              Offset(
+                e.localPosition.dx - box.maxWidth * 0.5,
+                e.localPosition.dy - box.maxHeight * 0.5,
+              ),
+            );
+          },
+          onExit: (_) => _engine.onPointerExit(),
+          child: GestureDetector(
+            onPanUpdate: (d) => _engine.onPanUpdate(d.delta),
+            onPanEnd: (_) => _engine.onPanEnd(),
+            child: Container(
+              height: wide ? double.infinity : 410,
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: _isReceiving
+                      ? [const Color(0xFF102347), const Color(0xFF070B18), AuroraPalette.bgDeep]
+                      : [const Color(0xFF0C152C), const Color(0xFF060914), AuroraPalette.bgDeep],
+                  radius: 1.15,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: GlobePainter(
+                        engine: _engine,
+                        isActive: _isReceiving,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: Transform.scale(
+                      scale: wide ? 1.0 : 0.88,
+                      alignment: Alignment.topLeft,
+                      child: _buildLegendHUD(),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                    child: Center(child: _buildNetworkStatus()),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
       },
-      onExit: (_) => setState(() => _mouseOffset = Offset.zero),
-      child: Container(
-        height: wide ? double.infinity : 380,
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            colors: _isReceiving
-                ? [const Color(0xFF0D1A2E), const Color(0xFF060610)]
-                : [const Color(0xFF101018), const Color(0xFF060610)],
-            radius: 1.2,
-          ),
-        ),
-        child: Stack(children: [
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return CustomPaint(
-                size: Size.infinite,
-                painter: GlobePainter(particles: _particles, isActive: _isReceiving),
-              );
-            },
-          ),
-          Positioned(
-            top: 14, 
-            left: 14, 
-            child: Transform.scale(
-              scale: wide ? 1.0 : 0.8, 
-              alignment: Alignment.topLeft, 
-              child: _buildLegendHUD()
-            )
-          ),
-          Positioned(bottom: 14, left: 0, right: 0, child: Center(child: _buildNetworkStatus())),
-        ]),
-      ),
     );
-    return wide ? Expanded(flex: 1, child: globe) : globe;
+    return wide ? Expanded(flex: 10, child: globe) : globe;
   }
 
   Widget _divider(bool wide) => Container(
-    width: wide ? 1 : double.infinity,
-    height: wide ? double.infinity : 1,
-    color: Colors.cyan.withOpacity(0.15),
-  );
+        width: wide ? 1.2 : double.infinity,
+        height: wide ? double.infinity : 1.2,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: wide ? Alignment.topCenter : Alignment.centerLeft,
+            end: wide ? Alignment.bottomCenter : Alignment.centerRight,
+            colors: [
+              Colors.transparent,
+              AuroraPalette.cyan.withOpacity(0.32),
+              AuroraPalette.violet.withOpacity(0.32),
+              Colors.transparent,
+            ],
+          ),
+        ),
+      );
 
-  // ─────────────── PANNELLO DESTRO ───────────────
+  // ─────────────── PANNELLO DESTRO (GUIDATO ① -> ③ -> ④) ───────────────
   Widget _buildAnalysisPanel(bool wide) {
     Widget matrixCompass = wide
         ? Row(children: [
             Expanded(flex: 3, child: _buildProbabilityMatrix()),
-            const SizedBox(width: 10),
-            Expanded(flex: 2, child: SemanticCompass(
-              currentToken: _currentSemanticToken,
-              neighbors: _semanticNeighbors,
-              isActive: _isReceiving,
-            )),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: SemanticCompass(
+                currentToken: _currentSemanticToken,
+                neighbors: _semanticNeighbors,
+                isActive: _isReceiving,
+                isBeginnerMode: widget.isBeginnerMode,
+              ),
+            ),
           ])
         : Column(children: [
-            SizedBox(height: 220, child: _buildProbabilityMatrix()),
-            const SizedBox(height: 10),
-            SizedBox(height: 220, child: SemanticCompass(
-              currentToken: _currentSemanticToken,
-              neighbors: _semanticNeighbors,
-              isActive: _isReceiving,
-            )),
+            SizedBox(height: 235, child: _buildProbabilityMatrix()),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 235,
+              child: SemanticCompass(
+                currentToken: _currentSemanticToken,
+                neighbors: _semanticNeighbors,
+                isActive: _isReceiving,
+                isBeginnerMode: widget.isBeginnerMode,
+              ),
+            ),
           ]);
 
     Widget content = Container(
-      padding: EdgeInsets.all(wide ? 24.0 : 16.0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('LAB 01 // RETI NEURALI & LLM',
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 20, fontWeight: FontWeight.bold, color: Colors.cyanAccent,
-                        letterSpacing: 1.5,
-                        shadows: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 10)],
-                      )),
-                  const SizedBox(height: 4),
-                  Text('Simulatore Didattico Spazio Latente, Softmax & Embedding // Gemini 2.5 Flash',
-                      style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12)),
-                ],
+      padding: EdgeInsets.all(wide ? 20.0 : 14.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.isBeginnerMode
+                          ? 'LAB 01 // COME FA UN\'AI A SCRIVERE UNA RISPOSTA?'
+                          : 'LAB 01 // SPAZIO LATENTE 3D, SOFTMAX & EMBEDDING',
+                      style: AuroraPalette.headingStyle(
+                        size: 17.5,
+                        color: AuroraPalette.cyan,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      widget.isBeginnerMode
+                          ? 'Segui i passi ① ➔ ② ➔ ③ ➔ ④: l\'AI calcola le probabilità e sceglie un mattoncino alla volta!'
+                          : 'Decodifica autoregressiva in tempo reale con telemetria d\'entropia e proiezione semantica',
+                      style: AuroraPalette.bodyStyle(
+                        color: Colors.white.withOpacity(0.84),
+                        size: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (widget.onOpenApiLab != null)
+              if (widget.onOpenApiLab != null)
+                InkWell(
+                  onTap: widget.onOpenApiLab,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AuroraPalette.mint.withOpacity(0.22),
+                          AuroraPalette.emerald.withOpacity(0.10),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AuroraPalette.mint.withOpacity(0.55)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 16, color: AuroraPalette.mint),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Vai a Lab 02 (API) ➔',
+                          style: AuroraPalette.headingStyle(
+                            color: AuroraPalette.mint,
+                            size: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 11),
+
+          _buildBeginnerControlsCard(),
+          const SizedBox(height: 11),
+
+          _buildMetricsBar(wide),
+          const SizedBox(height: 11),
+
+          if (wide)
+            Expanded(flex: 4, child: _buildTokenStream())
+          else
+            SizedBox(height: 260, child: _buildTokenStream()),
+
+          const SizedBox(height: 11),
+
+          if (wide)
+            Expanded(flex: 3, child: matrixCompass)
+          else
+            matrixCompass,
+
+          const SizedBox(height: 11),
+
+          _buildInput(),
+        ],
+      ),
+    );
+
+    return wide ? Expanded(flex: 11, child: content) : content;
+  }
+
+  Widget _buildBeginnerControlsCard() {
+    return AuroraGlassCard(
+      accentColor: AuroraPalette.cyan,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 7,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                '① PROVA SUBITO CON 1 CLICK:',
+                style: AuroraPalette.headingStyle(
+                  color: AuroraPalette.cyan,
+                  size: 11,
+                ),
+              ),
+              ..._starterPrompts.map((p) {
+                return InkWell(
+                  onTap: _isReceiving
+                      ? null
+                      : () => _sendPrompt(customPrompt: p.$2, fallbackAnswer: p.$3),
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AuroraPalette.cyan.withOpacity(0.18),
+                          AuroraPalette.electricBlue.withOpacity(0.12),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AuroraPalette.cyan.withOpacity(0.45)),
+                    ),
+                    child: Text(
+                      p.$1,
+                      style: AuroraPalette.headingStyle(
+                        color: Colors.white,
+                        size: 11,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Wrap(
+            spacing: 16,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               InkWell(
-                onTap: widget.onOpenApiLab,
+                onTap: () => setState(() => _slowMotionMode = !_slowMotionMode),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF69F0AE).withOpacity(0.15),
+                    color: _slowMotionMode
+                        ? AuroraPalette.amber.withOpacity(0.22)
+                        : Colors.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF69F0AE).withOpacity(0.55)),
+                    border: Border.all(
+                      color: _slowMotionMode ? AuroraPalette.amber : Colors.white24,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.api, size: 16, color: Color(0xFF69F0AE)),
-                      const SizedBox(width: 7),
-                      Text(
-                        'Dietro le quinte API ➔',
-                        style: GoogleFonts.spaceMono(
-                          color: const Color(0xFF69F0AE),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _slowMotionMode
+                        ? '🐢 RALLENTATORE PAROLA: ATTIVO (Ideale per osservare la gara!)'
+                        : '⚡ VELOCITÀ FLUIDA (Clicca per Rallentare 🐢)',
+                    style: AuroraPalette.headingStyle(
+                      color: _slowMotionMode ? AuroraPalette.amber : Colors.white,
+                      size: 10.5,
+                    ),
                   ),
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        // Metriche live
-        _buildMetricsBar(wide),
-        const SizedBox(height: 14),
-
-        // Token stream
-        if (wide) Expanded(flex: 4, child: _buildTokenStream())
-        else SizedBox(height: 280, child: _buildTokenStream()),
-        
-        const SizedBox(height: 12),
-
-        // Probability Matrix + Semantic Compass
-        if (wide) Expanded(flex: 3, child: matrixCompass)
-        else matrixCompass,
-        
-        const SizedBox(height: 14),
-
-        // Input
-        _buildInput(),
-      ]),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.isBeginnerMode
+                        ? '🎨 Fantasia AI (${_creativityTemp < 0.4 ? "Molto Precisa" : (_creativityTemp > 0.9 ? "Molto Creativa" : "Equilibrata")}):'
+                        : 'Temperatura (${_creativityTemp.toStringAsFixed(1)}):',
+                    style: AuroraPalette.headingStyle(
+                      color: const Color(0xFFC4B5FD),
+                      size: 11,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 110,
+                    height: 22,
+                    child: Slider(
+                      value: _creativityTemp,
+                      min: 0.1,
+                      max: 1.4,
+                      divisions: 13,
+                      activeColor: const Color(0xFFC4B5FD),
+                      onChanged: (v) => setState(() => _creativityTemp = v),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
     );
-
-    return wide ? Expanded(flex: 1, child: content) : content;
   }
 
   Widget _buildMetricsBar(bool wide) {
-    String latency = _metrics.firstTokenMs != null ? '${_metrics.firstTokenMs}ms' : '—';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
-      ),
+    final String latency = _metrics.firstTokenMs != null ? '${_metrics.firstTokenMs}ms' : '—';
+    final l1 = widget.isBeginnerMode ? 'VELOCITÀ (Parole/s)' : 'TOKEN/s';
+    final l2 = widget.isBeginnerMode ? 'PEZZI SCRITTI (Token)' : 'TOTALE TOKEN';
+    final l3 = widget.isBeginnerMode ? 'INDECISIONE AI' : 'ENTROPIA SHANNON';
+    final l4 = widget.isBeginnerMode ? 'TEMPO 1ª PAROLA' : 'LATENZA TTFT';
+
+    return AuroraGlassCard(
+      accentColor: Colors.white24,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      borderRadius: 12,
       child: wide
-          ? Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              _metricCell('TOKEN/s', _metrics.tokensPerSecond.toStringAsFixed(1), Colors.cyanAccent),
-              _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white),
-              _metricCell('ENTROPIA', _metrics.entropy.toStringAsFixed(2), Colors.purpleAccent),
-              _metricCell('LATENZA', latency, const Color(0xFFFF6B35)),
-            ])
-          : Wrap(
-              spacing: 16, runSpacing: 10, alignment: WrapAlignment.spaceBetween,
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _metricCell('TOKEN/s', _metrics.tokensPerSecond.toStringAsFixed(1), Colors.cyanAccent),
-                _metricCell('TOTALE', '${_metrics.totalTokens}', Colors.white),
-                _metricCell('ENTROPIA', _metrics.entropy.toStringAsFixed(2), Colors.purpleAccent),
-                _metricCell('LATENZA', latency, const Color(0xFFFF6B35)),
+                _metricCell(l1, _metrics.tokensPerSecond.toStringAsFixed(1), AuroraPalette.cyan),
+                _metricCell(l2, '${_metrics.totalTokens}', Colors.white),
+                _metricCell(l3, _metrics.entropy.toStringAsFixed(2), const Color(0xFFC4B5FD)),
+                _metricCell(l4, latency, AuroraPalette.coral),
+              ],
+            )
+          : Wrap(
+              spacing: 16,
+              runSpacing: 10,
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                _metricCell(l1, _metrics.tokensPerSecond.toStringAsFixed(1), AuroraPalette.cyan),
+                _metricCell(l2, '${_metrics.totalTokens}', Colors.white),
+                _metricCell(l3, _metrics.entropy.toStringAsFixed(2), const Color(0xFFC4B5FD)),
+                _metricCell(l4, latency, AuroraPalette.coral),
               ],
             ),
     );
   }
 
   Widget _metricCell(String label, String value, Color color) => Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Text(label, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 10.5, letterSpacing: 1, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 3),
-      Text(value, style: GoogleFonts.spaceMono(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: AuroraPalette.bodyStyle(
+              color: Colors.white70,
+              size: 10,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: AuroraPalette.monoStyle(color: color, size: 15, weight: FontWeight.bold),
+          ),
+        ],
+      );
 
   Widget _buildTokenStream() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.cyan.withOpacity(0.2)),
-        boxShadow: [BoxShadow(color: Colors.cyan.withOpacity(0.05), blurRadius: 20, spreadRadius: 4)],
-      ),
-      child: SingleChildScrollView(
-        controller: _scrollCtrl,
-        child: Wrap(spacing: 6, runSpacing: 4, children: [
-          ..._tokens.map((t) {
-            if (t == '\n') return const SizedBox(width: double.infinity, height: 8);
-            if (t.startsWith('>>') || t.startsWith('[')) {
-              return SizedBox(
-                width: double.infinity,
-                child: Text(t, style: TextStyle(color: Colors.cyanAccent.withOpacity(0.75), fontSize: 13)),
-              );
-            }
-            return TokenWidget(token: t);
-          }),
-          if (_decodingToken.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.yellow.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: Colors.yellowAccent.withOpacity(0.6)),
+    return AuroraGlassCard(
+      accentColor: AuroraPalette.cyan,
+      highlightBorder: _isReceiving,
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AuroraPalette.cyan.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: const Icon(Icons.auto_fix_high_rounded, size: 15, color: AuroraPalette.cyan),
               ),
-              child: Text(_decodingToken,
-                  style: const TextStyle(color: Colors.yellowAccent, fontSize: 16, fontFamily: 'monospace')),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.isBeginnerMode
+                      ? '④ LA FRASE SI COMPONE UN MATTONCINO ("TOKEN") ALLA VOLTA'
+                      : '④ LIVE TOKEN STREAM (AUTOREGRESSIVE DECODING)',
+                  style: AuroraPalette.headingStyle(
+                    color: AuroraPalette.cyan,
+                    size: 11.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _scrollCtrl,
+              child: _tokens.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 32),
+                        child: Text(
+                          '👆 Clicca uno dei 3 pulsanti di esempio qui sopra (oppure scrivi sotto) per vedere l\'AI costruire la frase!',
+                          style: AuroraPalette.bodyStyle(
+                            color: Colors.white70,
+                            size: 13.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (int i = 0; i < _tokens.length; i++)
+                          _buildFastTokenItem(_tokens[i], isLatest: i == _tokens.length - 1 && _isReceiving),
+                        if (_decodingToken.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AuroraPalette.amber.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AuroraPalette.amber.withOpacity(0.75)),
+                            ),
+                            child: Text(
+                              _decodingToken,
+                              style: AuroraPalette.monoStyle(
+                                color: AuroraPalette.amber,
+                                size: 14.5,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
             ),
-        ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Rendering leggero dei token: 0 AnimationController istanziati per parola = fluidità assoluta anche con centinaia di token!
+  Widget _buildFastTokenItem(String t, {required bool isLatest}) {
+    if (t == '\n') return const SizedBox(width: double.infinity, height: 6);
+    if (t.startsWith('>>') || t.startsWith('[')) {
+      return SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Text(
+            t,
+            style: AuroraPalette.monoStyle(
+              color: AuroraPalette.cyan.withOpacity(0.85),
+              size: 12,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isLatest
+            ? AuroraPalette.cyan.withOpacity(0.22)
+            : Colors.white.withOpacity(0.035),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isLatest
+              ? AuroraPalette.cyan
+              : Colors.white.withOpacity(0.08),
+          width: isLatest ? 1.3 : 1.0,
+        ),
+      ),
+      child: Text(
+        t,
+        style: AuroraPalette.bodyStyle(
+          color: isLatest ? AuroraPalette.cyan : Colors.white.withOpacity(0.96),
+          size: 15.5,
+          weight: isLatest ? FontWeight.w800 : FontWeight.w500,
+          height: 1.35,
+        ),
       ),
     );
   }
 
   Widget _buildProbabilityMatrix() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+    return AuroraGlassCard(
+      accentColor: AuroraPalette.violet,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AuroraPalette.violet.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: const Icon(Icons.equalizer_rounded, size: 15, color: Color(0xFFC4B5FD)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.isBeginnerMode
+                      ? '③a. GARA TRA LE PROSSIME PAROLE'
+                      : '③a. DISTRIBUZIONE SOFTMAX',
+                  style: AuroraPalette.headingStyle(
+                    color: const Color(0xFFC4B5FD),
+                    size: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: (_isReceiving ? AuroraPalette.mint : Colors.white24).withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _isReceiving ? '● IN GARA' : '○ PRONTA',
+                  style: AuroraPalette.monoStyle(
+                    color: _isReceiving ? AuroraPalette.mint : Colors.white60,
+                    size: 9.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.isBeginnerMode
+                ? 'Come i suggerimenti dello smartphone: vince la parola azzurra (▶)!'
+                : 'Probabilità condizionata P(w_t | w_<t) sui token candidati:',
+            style: AuroraPalette.bodyStyle(color: Colors.white70, size: 10.5),
+          ),
+          const SizedBox(height: 10),
+          if (_candidates.isEmpty)
+            Expanded(
+              child: Center(
+                child: Text(
+                  'Avvia una domanda per vedere le 3 parole finaliste sfidarsi a colpi di %!',
+                  style: AuroraPalette.bodyStyle(color: Colors.white54, size: 11.5),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else
+            ..._candidates.map((c) => _candidateBar(c)),
+        ],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('SOFTMAX DISTRIBUTION', style: GoogleFonts.spaceMono(color: Colors.purpleAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-          const Spacer(),
-          Text(_isReceiving ? '● LIVE' : '○ IDLE',
-              style: GoogleFonts.spaceMono(color: _isReceiving ? Colors.purpleAccent : Colors.white60, fontSize: 10.5)),
-        ]),
-        const SizedBox(height: 10),
-        if (_candidates.isEmpty)
-          Center(child: Text('In attesa...', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13)))
-        else
-          ..._candidates.map((c) => _candidateBar(c)),
-      ]),
     );
   }
 
   Widget _candidateBar(TokenCandidate c) {
-    Color col = c.isSelected ? Colors.cyanAccent : Colors.purpleAccent.withOpacity(0.8);
+    final Color col = c.isSelected ? AuroraPalette.cyan : const Color(0xFFC4B5FD);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.5),
-      child: Row(children: [
-        SizedBox(
-          width: 110,
-          child: Text(
-            '${c.isSelected ? '▶ ' : '  '}${c.word}',
-            style: GoogleFonts.spaceMono(
-              color: col, fontSize: 12,
-              fontWeight: c.isSelected ? FontWeight.bold : FontWeight.normal,
-              decoration: c.isSelected ? null : TextDecoration.lineThrough,
-              decorationColor: Colors.red.withOpacity(0.5),
+      padding: const EdgeInsets.symmetric(vertical: 4.5),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              '${c.isSelected ? '▶ ' : '  '}${c.word}',
+              style: AuroraPalette.monoStyle(
+                color: col,
+                size: 12,
+                weight: c.isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Stack(children: [
-            Container(height: 12, decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.07), borderRadius: BorderRadius.circular(3))),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              height: 12,
-              width: c.probability * 150,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(3),
-                gradient: LinearGradient(
-                  colors: c.isSelected
-                      ? [const Color(0xFF00BCD4), Colors.cyanAccent]
-                      : [Colors.purple.withOpacity(0.4), Colors.purple.withOpacity(0.65)],
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: c.probability.clamp(0.0, 1.0),
+                minHeight: 12,
+                backgroundColor: Colors.white.withOpacity(0.07),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  c.isSelected ? AuroraPalette.cyan : AuroraPalette.violet.withOpacity(0.65),
                 ),
-                boxShadow: c.isSelected ? [BoxShadow(color: Colors.cyanAccent.withOpacity(0.35), blurRadius: 4)] : [],
               ),
             ),
-          ]),
-        ),
-        const SizedBox(width: 8),
-        Text('${(c.probability * 100).toStringAsFixed(1)}%',
-            style: GoogleFonts.spaceMono(color: col, fontSize: 11.5, fontWeight: FontWeight.bold)),
-      ]),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 48,
+            child: Text(
+              '${(c.probability * 100).toStringAsFixed(1)}%',
+              textAlign: TextAlign.right,
+              style: AuroraPalette.monoStyle(color: col, size: 11.5, weight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildLegendHUD() {
-    return Container(
-      width: 285,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.cyan.withOpacity(0.3)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 10)],
+    return AuroraGlassCard(
+      accentColor: AuroraPalette.cyan,
+      padding: const EdgeInsets.all(14),
+      borderRadius: 14,
+      child: SizedBox(
+        width: 280,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.threed_rotation_rounded, size: 16, color: AuroraPalette.cyan),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    widget.isBeginnerMode ? '② CERVELLO 3D INTERATTIVO' : '② SPAZIO LATENTE 3D',
+                    style: AuroraPalette.headingStyle(
+                      color: AuroraPalette.cyan,
+                      size: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _legendRow(
+              AuroraPalette.cyan,
+              'circle',
+              widget.isBeginnerMode ? 'IDEA APPENA ACCESA' : 'NODO ATTIVO',
+              widget.isBeginnerMode ? 'Parola che l\'AI sta calcolando ora' : 'Attivazione immediata nello strato',
+            ),
+            _legendRow(
+              const Color(0xFFF43F5E),
+              'circle',
+              widget.isBeginnerMode ? 'TEMA RICORRENTE' : 'ATTENTION HOTSPOT',
+              widget.isBeginnerMode ? 'Concetto centrale nel discorso' : 'Peso storico Self-Attention elevato',
+            ),
+            _legendRow(
+              const Color(0xFF3B82F6),
+              'circle',
+              widget.isBeginnerMode ? 'MEMORIA A RIPOSO' : 'NODO LATENTE',
+              widget.isBeginnerMode ? 'Concetti pronti ad accendersi' : 'Parametri non eccitati dal token',
+            ),
+            _legendRow(
+              AuroraPalette.cyan,
+              'line',
+              widget.isBeginnerMode ? 'IMPULSO TRA CONCETTI' : 'SINAPSI & IMPULSI',
+              widget.isBeginnerMode ? 'Fili luminosi tra parole collegate' : 'Propagazione pesi sinaptici W_ij',
+            ),
+          ],
+        ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('LEGENDA RETE', style: GoogleFonts.spaceMono(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-        const SizedBox(height: 10),
-        _legendRow(Colors.cyanAccent, 'circle', 'NODO ATTIVO', 'Spazio Latente in elaborazione'),
-        _legendRow(Colors.blue.shade300, 'circle', 'NODO INATTIVO', 'Embedding a riposo'),
-        _legendRow(const Color(0xFFFF6B35), 'circle', 'NODO HOT', 'Alta attenzione storica (heatmap)'),
-        _legendRow(Colors.cyanAccent, 'line', 'SINAPSI ATTIVA', 'Peso W_{ij} elevato'),
-        _legendRow(Colors.blue.shade200.withOpacity(0.5), 'line', 'SINAPSI DEBOLE', 'Peso W_{ij} basso'),
-      ]),
     );
   }
 
   Widget _legendRow(Color color, String shape, String label, String desc) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 20, height: 20, child: Center(
-          child: shape == 'circle'
-              ? Container(width: 9, height: 9, decoration: BoxDecoration(
-                  color: color, shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: color.withOpacity(0.6), blurRadius: 4)]))
-              : Container(width: 18, height: 2.5, color: color),
-        )),
-        const SizedBox(width: 8),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          const SizedBox(height: 2),
-          Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
-        ])),
-      ]),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: Center(
+              child: shape == 'circle'
+                  ? Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: color.withOpacity(0.6), blurRadius: 5)],
+                      ),
+                    )
+                  : Container(
+                      width: 16,
+                      height: 2.5,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AuroraPalette.headingStyle(color: color, size: 11),
+                ),
+                Text(
+                  desc,
+                  style: AuroraPalette.bodyStyle(
+                    color: Colors.white.withOpacity(0.82),
+                    size: 10.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildNetworkStatus() {
-    Color c = _isReceiving ? Colors.cyanAccent : Colors.white70;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+    final Color c = _isReceiving ? AuroraPalette.cyan : Colors.white70;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7.5),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.78),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: c.withOpacity(0.5)),
-        boxShadow: _isReceiving ? [BoxShadow(color: Colors.cyanAccent.withOpacity(0.18), blurRadius: 8)] : [],
+        color: const Color(0xFF070B19).withOpacity(0.88),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: c.withOpacity(0.45)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10),
+        ],
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(
-          color: c, shape: BoxShape.circle,
-          boxShadow: _isReceiving ? [BoxShadow(color: Colors.cyanAccent, blurRadius: 4)] : [],
-        )),
-        const SizedBox(width: 8),
-        Text('RETE NEURALE: $_networkState',
-            style: GoogleFonts.spaceMono(color: c, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: c,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'RETE 3D: $_networkState · Trascina per ruotare in 3D o muovi il mouse',
+              style: AuroraPalette.monoStyle(color: c, size: 10, weight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildInput() {
-    return Row(children: [
-      Expanded(
-        child: GestureDetector(
-          onTap: () => _focusNode.requestFocus(),
-          child: TextField(
-            focusNode: _focusNode,
-            controller: _textCtrl,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-            hintText: 'Invia stimolo alla rete neurale...',
-            hintStyle: TextStyle(color: Colors.white.withOpacity(0.25)),
-            filled: true,
-            fillColor: Colors.black.withOpacity(0.55),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.cyanAccent, width: 1),
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () => _focusNode.requestFocus(),
+            child: TextField(
+              focusNode: _focusNode,
+              controller: _textCtrl,
+              style: AuroraPalette.bodyStyle(color: Colors.white, size: 14),
+              decoration: InputDecoration(
+                hintText: 'Oppure scrivi qui qualsiasi domanda e premi Invio...',
+                hintStyle: AuroraPalette.bodyStyle(color: Colors.white54, size: 13.5),
+                filled: true,
+                fillColor: const Color(0xFF0A1024).withOpacity(0.88),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AuroraPalette.cyan.withOpacity(0.25)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AuroraPalette.cyan, width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              onSubmitted: (_) => _sendPrompt(),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           ),
-          onSubmitted: (_) => _sendPrompt(),
         ),
-      ),
-      ),
-      const SizedBox(width: 10),
-      InkWell(
-        onTap: _isReceiving ? null : _sendPrompt,
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _isReceiving ? Colors.grey.withOpacity(0.15) : Colors.cyan.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _isReceiving ? Colors.transparent : Colors.cyanAccent.withOpacity(0.45),
+        const SizedBox(width: 10),
+        InkWell(
+          onTap: _isReceiving ? null : () => _sendPrompt(),
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              gradient: _isReceiving
+                  ? null
+                  : LinearGradient(
+                      colors: [
+                        AuroraPalette.cyan.withOpacity(0.28),
+                        AuroraPalette.electricBlue.withOpacity(0.22),
+                      ],
+                    ),
+              color: _isReceiving ? Colors.white10 : null,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _isReceiving ? Colors.white12 : AuroraPalette.cyan.withOpacity(0.65),
+              ),
             ),
-            boxShadow: _isReceiving ? [] : [BoxShadow(color: Colors.cyanAccent.withOpacity(0.1), blurRadius: 10)],
+            child: Icon(
+              Icons.send_rounded,
+              color: _isReceiving ? Colors.white24 : AuroraPalette.cyan,
+              size: 20,
+            ),
           ),
-          child: Icon(Icons.send, color: _isReceiving ? Colors.white24 : Colors.cyanAccent, size: 20),
         ),
-      ),
-    ]);
+      ],
+    );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TOKEN WIDGET — Animazione entrata slide+fade per ogni token generato
-// ─────────────────────────────────────────────────────────────────────────────
-class TokenWidget extends StatefulWidget {
-  final String token;
-  const TokenWidget({super.key, required this.token});
-  @override
-  State<TokenWidget> createState() => _TokenWidgetState();
-}
-
-class _TokenWidgetState extends State<TokenWidget> with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-  late Animation<double> _fade;
-  late Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 160));
-    _fade = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _c, curve: Curves.easeIn));
-    _slide = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
-    _c.forward();
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: _fade,
-    child: SlideTransition(
-      position: _slide,
-      child: Text(widget.token, style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 16, height: 1.65)),
-    ),
-  );
 }
