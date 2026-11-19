@@ -13,6 +13,7 @@ import 'semantic_compass.dart';
 import 'api_lab.dart';
 import 'rag_lab.dart';
 import 'docker_lab.dart';
+import 'app_builder_lab.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,8 +75,10 @@ class _AcademicShellState extends State<AcademicShell> {
         return AuroraPalette.mint;
       case 2:
         return const Color(0xFFC084FC);
-      default:
+      case 3:
         return const Color(0xFF38BDF8);
+      default:
+        return const Color(0xFFFBBF24);
     }
   }
 
@@ -146,6 +149,14 @@ class _AcademicShellState extends State<AcademicShell> {
                         ),
                       ),
                     ),
+                    TickerMode(
+                      enabled: _selectedIndex == 4,
+                      child: RepaintBoundary(
+                        child: AppBuilderLabWorkspace(
+                          isBeginnerMode: _isBeginnerMode,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -185,6 +196,13 @@ class _AcademicShellState extends State<AcademicShell> {
         _isBeginnerMode ? 'LAB 04 // COS\'È DOCKER?' : 'LAB 04 // DOCKER & CONTAINER',
         _isBeginnerMode ? 'La "Valigia Magica" dei Programmi' : 'Dockerfile, Immagini, Layer & Runtime',
         const Color(0xFF38BDF8),
+      ),
+      (
+        4,
+        Icons.extension_rounded,
+        _isBeginnerMode ? 'LAB 05 // COSTRUISCI UN\'APP' : 'LAB 05 // FULL-STACK ARCHITECTURE',
+        _isBeginnerMode ? 'Gioco Drag&Drop: Frontend, FastAPI, DB' : 'Frontend ⇄ FastAPI ⇄ Backend ⇄ DB & AI',
+        const Color(0xFFFBBF24),
       ),
     ];
 
