@@ -50,7 +50,7 @@ class AcademicShell extends StatefulWidget {
 
 class _AcademicShellState extends State<AcademicShell> {
   int _selectedIndex = 0;
-  double _textScale = 1.12;
+  double _textScale = 1.16;
   bool _isBeginnerMode = true;
   late final GenerativeModel _sharedModel;
   late final bool _hasKey;
@@ -182,8 +182,8 @@ class _AcademicShellState extends State<AcademicShell> {
       (
         3,
         Icons.inventory_2_rounded,
-        'LAB 04 // DOCKER & CONTAINER',
-        _isBeginnerMode ? 'La "Scatola Magica" del Software' : 'Dockerfile, Immagini, Layer & Runtime',
+        _isBeginnerMode ? 'LAB 04 // COS\'È DOCKER?' : 'LAB 04 // DOCKER & CONTAINER',
+        _isBeginnerMode ? 'La "Valigia Magica" dei Programmi' : 'Dockerfile, Immagini, Layer & Runtime',
         const Color(0xFF38BDF8),
       ),
     ];
@@ -388,8 +388,8 @@ class _AcademicShellState extends State<AcademicShell> {
                     const Icon(Icons.format_size_rounded, size: 14, color: AuroraPalette.cyan),
                     const SizedBox(width: 4),
                     _zoomBtn('100%', 1.0),
-                    _zoomBtn('112%', 1.12),
-                    _zoomBtn('125%', 1.25),
+                    _zoomBtn('116%', 1.16),
+                    _zoomBtn('130%', 1.30),
                   ],
                 ),
               ),
